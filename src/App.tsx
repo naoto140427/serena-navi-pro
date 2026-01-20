@@ -11,7 +11,7 @@ import { CoPilotPage } from './pages/CoPilotPage';
 
 // ウィジェット類
 import { GPSWatcher } from './components/widgets/GPSWatcher';
-import { DynamicIsland } from './components/widgets/DynamicIsland';
+//import { DynamicIsland } from './components/widgets/DynamicIsland'
 
 // レイアウト・演出類
 import { BootSequence } from './components/layout/BootSequence';

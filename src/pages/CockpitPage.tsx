@@ -1,31 +1,81 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { useNavStore } from '../store/useNavStore';
 import { MapWidget } from '../components/widgets/MapWidget';
 import { NexcoWidget } from '../components/widgets/NexcoWidget';
 import { TrafficTicker } from '../components/widgets/TrafficTicker';
 import { HighwaySignWidget } from '../components/widgets/HighwaySignWidget';
 import { WeatherWidget } from '../components/widgets/WeatherWidget';
-import { InteractionOverlay } from '../components/cockpit/InteractionOverlay'; // 追加
-import { Navigation, Zap } from 'lucide-react';
+import { InteractionOverlay } from '../components/cockpit/InteractionOverlay';
+import { Navigation, Mic, ScanLine, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useVoiceAssistant } from '../hooks/useVoiceAssistant';
 
 export const CockpitPage: React.FC = () => {
-  const { trafficInfo, nextWaypoint, currentSpeed, nearestFacilityText } = useNavStore();
+  const { trafficInfo, nextWaypoint, currentSpeed, nearestFacilityText, addExpense } = useNavStore();
   const safeTrafficInfo = trafficInfo || { riskLevel: 0, jamDistance: 0, nextReg: '--' };
+  
+  // Voice Assistant Hook
+  const { isListening, transcript, startListening } = useVoiceAssistant();
+
+  // Vision Scan Logic
+  const [isScanning, setIsScanning] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 音声フィードバック用関数
+  const speak = (text: string) => {
+    window.speechSynthesis.cancel();
+    const uttr = new SpeechSynthesisUtterance(text);
+    uttr.lang = "ja-JP";
+    uttr.rate = 1.2;
+    window.speechSynthesis.speak(uttr);
+  };
+
+  const handleScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsScanning(true);
+    speak("画像を解析しています。前方を見てお待ちください。");
+
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64String = reader.result as string;
+        
+        const res = await fetch('/api/scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: base64String }),
+        });
+        
+        const data = await res.json();
+        
+        if (data.title && data.amount) {
+          // Driverモードなので、確認なしで即座にNaoto払いで登録
+          addExpense(data.title, parseInt(data.amount), 'Naoto');
+          speak(`${data.title}、${data.amount}円を登録しました。`);
+        } else {
+          speak("金額を読み取れませんでした。");
+        }
+        setIsScanning(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error(error);
+      setIsScanning(false);
+      speak("エラーが発生しました。");
+    }
+  };
 
   return (
     <div className="h-full flex flex-col gap-4 p-4 pb-24 overflow-y-auto md:overflow-hidden relative bg-cockpit-bg text-cockpit-text-primary font-sans">
       
-      {/* ★通知オーバーレイ (最前面) */}
       <InteractionOverlay />
       
       {/* メインエリア */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4 min-h-[50vh] md:h-[300px]">
-        
-        {/* 左側：速度計 & 情報 */}
+        {/* 左側パネル (速度等) */}
         <div className="md:col-span-4 flex flex-col gap-4 md:justify-between order-2 md:order-1">
-          
-          {/* Speedometer Panel */}
           <div className="bg-cockpit-panel backdrop-blur-md rounded-2xl p-6 border border-cockpit-border text-center md:text-left shadow-lg">
             <div className="text-cockpit-text-muted text-xs font-bold uppercase tracking-wider mb-1 font-mono">Current Speed</div>
             <div className="flex items-baseline justify-center md:justify-start gap-2">
@@ -36,7 +86,6 @@ export const CockpitPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Next Waypoint Panel */}
           <div className="bg-cockpit-panel backdrop-blur-md rounded-xl p-4 border border-cockpit-border">
             <div className="flex items-center gap-2 text-cockpit-text-secondary mb-2">
               <Navigation size={16} />
@@ -51,11 +100,9 @@ export const CockpitPage: React.FC = () => {
           </div>
         </div>
 
-        {/* 中央〜右側：地図ウィジェット */}
+        {/* 地図エリア */}
         <div className="md:col-span-8 relative h-[300px] md:h-auto order-1 md:order-2 rounded-2xl overflow-hidden shadow-2xl border border-cockpit-border bg-black">
           <MapWidget />
-          
-          {/* Right Overlay: NEXCO Info */}
           <div className="absolute top-4 right-4 w-auto md:w-64 z-10">
             <NexcoWidget 
               riskLevel={safeTrafficInfo.riskLevel} 
@@ -63,28 +110,55 @@ export const CockpitPage: React.FC = () => {
               nextReg={safeTrafficInfo.nextReg} 
             />
           </div>
-
-          {/* Left Overlay: Highway Signs */}
           <div className="absolute top-4 left-4 z-10 hidden md:block">
-             <HighwaySignWidget />
+            <HighwaySignWidget />
           </div>
         </div>
       </div>
 
-      {/* 下部：ステータスグリッド */}
+      {/* 下部パネル: Command Center */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1 min-h-[200px]">
         
-        {/* ProPILOT Status */}
-        <div className="bg-cockpit-panel backdrop-blur-md rounded-2xl p-4 border border-cockpit-border flex flex-row md:flex-col items-center justify-between md:justify-center relative overflow-hidden group">
-          <div className="absolute inset-0 bg-cockpit-accent/5 animate-pulse group-hover:bg-cockpit-accent/10 transition-colors"></div>
-          <div className="flex items-center gap-4 md:flex-col z-10">
-            <div className="w-12 h-12 md:w-16 md:h-16 rounded-full border-4 border-cockpit-accent flex items-center justify-center shadow-[0_0_20px_rgba(59,130,246,0.3)]">
-              <Zap size={20} className="text-cockpit-accent md:scale-125" />
-            </div>
-            <div className="text-left md:text-center">
-              <div className="text-cockpit-accent font-bold tracking-wider text-sm md:text-base">ProPILOT 2.0</div>
-              <div className="text-xs text-cockpit-accent/50 font-mono">SYSTEM ACTIVE</div>
-            </div>
+        {/* Voice & Vision Command Panel (2分割) */}
+        <div className="bg-cockpit-panel backdrop-blur-md rounded-2xl border border-cockpit-border flex overflow-hidden relative">
+          
+          {/* Left: Voice Assistant */}
+          <button 
+            onClick={startListening}
+            className={`flex-1 flex flex-col items-center justify-center gap-2 border-r border-zinc-700/50 hover:bg-white/5 transition-all ${isListening ? 'bg-red-900/30' : ''}`}
+          >
+            <Mic size={28} className={isListening ? "text-red-500 animate-pulse" : "text-white"} />
+            <span className="text-[10px] font-bold text-zinc-400 tracking-widest">VOICE</span>
+            {isListening && transcript && (
+              <span className="absolute bottom-2 text-[10px] text-white bg-black/50 px-2 rounded truncate max-w-full">
+                {transcript}
+              </span>
+            )}
+          </button>
+
+          {/* Right: Vision Scan */}
+          <div className="flex-1 relative">
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              accept="image/*" 
+              capture="environment" 
+              onChange={handleScan} 
+              className="hidden" 
+            />
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              className={`w-full h-full flex flex-col items-center justify-center gap-2 hover:bg-white/5 transition-all ${isScanning ? 'bg-green-900/30' : ''}`}
+            >
+              {isScanning ? (
+                <Loader2 size={28} className="text-green-500 animate-spin" />
+              ) : (
+                <ScanLine size={28} className="text-green-400" />
+              )}
+              <span className="text-[10px] font-bold text-zinc-400 tracking-widest">
+                {isScanning ? "ANALYZING..." : "SCAN RECEIPT"}
+              </span>
+            </button>
           </div>
         </div>
 
@@ -105,7 +179,6 @@ export const CockpitPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Weather Widget */}
         <WeatherWidget />
       </div>
 
