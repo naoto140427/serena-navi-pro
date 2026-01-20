@@ -1,41 +1,61 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import { CockpitPage } from './pages/CockpitPage';
 import { CoPilotPage } from './pages/CoPilotPage';
+import { BootSequence } from './components/layout/BootSequence';
+import { UserSelector } from './components/layout/UserSelector';
 import { useNavStore } from './store/useNavStore';
 import { useWakeLock } from './hooks/useWakeLock';
 
-function App() {
+function AppContent() {
   const { initializeSync } = useNavStore();
   
-  // スリープ防止
+  // ★ 開発中は false に設定して演出をスキップ
+  const [isBooting, setIsBooting] = useState(false); 
+  const [isUserSelected, setIsUserSelected] = useState(true);
+
   useWakeLock();
 
-  // アプリ起動時にFirebase同期を開始
   useEffect(() => {
     initializeSync();
   }, [initializeSync]);
 
+  const handleBootComplete = () => setIsBooting(false);
+  const handleUserSelected = () => setIsUserSelected(true);
+
   return (
-    <Router>
-      <div className="w-full h-screen bg-black overflow-hidden">
-        {/* ナビゲーション (開発用: 画面上部に隠しリンクなどを置く想定だが、今はシンプルに) */}
-        
+    <div className="w-full h-screen bg-black overflow-hidden font-sans">
+      
+      <AnimatePresence>
+        {isBooting && <BootSequence onComplete={handleBootComplete} />}
+      </AnimatePresence>
+
+      {!isBooting && !isUserSelected && (
+        <UserSelector onSelect={handleUserSelected} />
+      )}
+
+      {!isBooting && isUserSelected && (
         <Routes>
           <Route path="/" element={<CockpitPage />} />
           <Route path="/copilot" element={<CoPilotPage />} />
-          
-          {/* 他のページも必要に応じてここに追加 */}
-          {/* <Route path="/wallet" element={<WalletPage />} /> */}
-          {/* <Route path="/timeline" element={<TimelinePage />} /> */}
         </Routes>
-
-        {/* 開発用デバッグメニュー (画面下部固定) */}
-        <div className="fixed bottom-0 left-0 right-0 p-2 bg-black/50 backdrop-blur-sm flex justify-center gap-4 z-50 pointer-events-auto opacity-0 hover:opacity-100 transition-opacity">
-          <Link to="/" className="text-xs text-zinc-400 hover:text-white">Cockpit</Link>
-          <Link to="/copilot" className="text-xs text-zinc-400 hover:text-white">Co-Pilot</Link>
-        </div>
+      )}
+      
+      {/* Dev Menu */}
+      <div className="fixed bottom-0 right-0 p-2 opacity-50 hover:opacity-100 z-50 flex gap-2 text-xs text-zinc-500 pointer-events-auto">
+         <Link to="/">Cockpit</Link>
+         |
+         <Link to="/copilot">Co-Pilot</Link>
       </div>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AppContent />
     </Router>
   );
 }

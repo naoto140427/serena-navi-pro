@@ -19,12 +19,14 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ onComplete }) => {
 
   useEffect(() => {
     if (currentText >= checkList.length) {
-      setTimeout(onComplete, 800);
+      setTimeout(onComplete, 800); // 最後のメッセージの後、少し待って終了
       return;
     }
+
     const timer = setTimeout(() => {
       setCurrentText(prev => prev + 1);
-    }, 400);
+    }, 400); // 0.4秒ごとにテキスト切り替え
+
     return () => clearTimeout(timer);
   }, [currentText, onComplete]);
 
@@ -36,6 +38,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ onComplete }) => {
         exit={{ opacity: 0 }}
         className="w-full max-w-md px-8"
       >
+        {/* Logo / Title */}
         <motion.h1 
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -45,6 +48,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ onComplete }) => {
           SERENA <span className="text-blue-500">NAVI</span> PRO
         </motion.h1>
 
+        {/* Progress Bar */}
         <div className="w-full h-1 bg-zinc-800 rounded-full mb-4 overflow-hidden">
           <motion.div 
             className="h-full bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.8)]"
@@ -54,6 +58,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ onComplete }) => {
           />
         </div>
 
+        {/* System Text */}
         <div className="h-6 overflow-hidden">
           <AnimatePresence mode="wait">
             {currentText < checkList.length && (
