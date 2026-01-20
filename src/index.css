@@ -1,0 +1,17 @@
+@import "tailwindcss";
+/* iOS特有のバウンススクロールなどを抑制し、アプリっぽくする */
+body {
+  background-color: #000000;
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* スクロールバーを隠す（見た目スッキリ） */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
