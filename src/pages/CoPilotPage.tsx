@@ -2,10 +2,12 @@ import React, { useState, useMemo, useRef } from 'react';
 import { useNavStore } from '../store/useNavStore';
 import { 
   Coffee, Music, MapPin, Navigation, ArrowRight, 
-  Wallet, Utensils, Camera, Activity,
-  Thermometer, Clock, Radio, ScanLine, Loader2
+  Wallet, Activity,
+  Thermometer, Clock, Radio, ScanLine, Loader2,
+  Play, Pause, SkipForward, LogIn, X, ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSpotify } from '../hooks/useSpotify';
 
 // --- サブコンポーネント: Telemetry Header ---
 const TelemetryHeader = () => {
@@ -56,95 +58,91 @@ const TelemetryHeader = () => {
 };
 
 // --- サブコンポーネント: DJ Panel ---
-const DJPanel = ({ onSend }: { onSend: any }) => {
-  const [playlist, setPlaylist] = useState([
-    { id: 1, title: "Driving Home 2026", artist: "Chill Vibes", votes: 2 },
-    { id: 2, title: "Highway Star", artist: "Rock Legends", votes: 0 },
-    { id: 3, title: "Night Cruising", artist: "City Pop", votes: 1 },
-  ]);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const DJPanel = () => {
+  const { token, track, isPlaying, handleLogin, handleNext, handlePlayPause } = useSpotify();
 
-  const handleVote = (id: number) => {
-    setPlaylist(prev => prev.map(item => 
-      item.id === id ? { ...item, votes: item.votes + 1 } : item
-    ).sort((a,b) => b.votes - a.votes));
-    onSend('music', 'プレイリストに投票しました');
-  };
+  if (!token) {
+    return (
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 text-center">
+        <div className="w-16 h-16 bg-[#1DB954] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-green-900/50">
+          <Music className="text-black" size={32} />
+        </div>
+        <h3 className="text-white font-bold mb-2">Connect to Car Audio</h3>
+        <p className="text-zinc-500 text-xs mb-4">Spotifyと連携してDJを始めよう</p>
+        <button 
+          onClick={handleLogin}
+          className="bg-[#1DB954] hover:bg-[#1ed760] text-black font-bold py-3 px-6 rounded-full flex items-center justify-center gap-2 mx-auto transition-all active:scale-95"
+        >
+          <LogIn size={18} /> Login with Spotify
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
-      <div className="bg-gradient-to-r from-pink-900/40 to-purple-900/40 border border-pink-500/20 rounded-2xl p-4 flex items-center gap-4 relative overflow-hidden">
-        <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-black/20 to-transparent"></div>
-        <div className="w-20 h-20 rounded-xl bg-zinc-800 shadow-xl flex items-center justify-center shrink-0 relative z-10">
-          <div className="absolute inset-0 bg-pink-500/20 blur-xl"></div>
-          <Music className="text-white relative z-10" size={32} />
-        </div>
-        <div className="relative z-10 flex-1">
-          <div className="text-[10px] text-pink-300 font-bold uppercase tracking-wider mb-1 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-pink-500 animate-pulse"></span> NOW PLAYING
-          </div>
-          <h3 className="text-lg font-bold text-white leading-tight">Midnight City</h3>
-          <p className="text-sm text-zinc-400">M83</p>
-        </div>
-      </div>
-      <div>
-        <h3 className="text-xs font-bold text-zinc-500 uppercase mb-2 px-1">UP NEXT (VOTE)</h3>
-        <div className="space-y-2">
-          {playlist.map((track, i) => (
-            <div key={track.id} className="flex items-center justify-between bg-zinc-900/50 border border-zinc-800 p-3 rounded-xl">
-              <div className="flex items-center gap-3">
-                <div className="text-xs font-bold text-zinc-600 font-mono">0{i+1}</div>
-                <div>
-                  <div className="text-sm font-bold text-zinc-200">{track.title}</div>
-                  <div className="text-xs text-zinc-500">{track.artist}</div>
-                </div>
+      <div className="bg-gradient-to-r from-green-900/40 to-zinc-900/40 border border-[#1DB954]/30 rounded-2xl p-4 relative overflow-hidden">
+        {track ? (
+          <div className="flex items-center gap-4 relative z-10">
+            <img 
+              src={track.album.images[0]?.url} 
+              alt="Album Art" 
+              className={`w-20 h-20 rounded-xl shadow-xl ${isPlaying ? 'animate-pulse' : 'grayscale opacity-70'}`}
+            />
+            <div className="flex-1 min-w-0">
+              <div className="text-[10px] text-[#1DB954] font-bold uppercase tracking-wider mb-1 flex items-center gap-1">
+                <Music size={10} /> SPOTIFY LINKED
               </div>
-              <button 
-                onClick={() => handleVote(track.id)}
-                className="flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-full transition-colors"
-              >
-                <div className="text-[10px] text-zinc-400">👍</div>
-                <div className="text-xs font-bold text-white">{track.votes}</div>
-              </button>
+              <h3 className="text-lg font-bold text-white leading-tight truncate">{track.name}</h3>
+              <p className="text-sm text-zinc-400 truncate">{track.artists.map((a:any) => a.name).join(', ')}</p>
             </div>
-          ))}
+          </div>
+        ) : (
+          <div className="flex items-center justify-center h-20 text-zinc-500 text-sm">
+            停止中または広告再生中...
+          </div>
+        )}
+
+        <div className="flex justify-around items-center mt-4 border-t border-white/10 pt-3">
+          <button onClick={handlePlayPause} className="p-3 text-white hover:text-[#1DB954] transition-colors">
+            {isPlaying ? <Pause size={28} /> : <Play size={28} />}
+          </button>
+          <button onClick={handleNext} className="p-3 text-white hover:text-[#1DB954] transition-colors active:scale-90">
+            <SkipForward size={28} />
+          </button>
         </div>
       </div>
     </div>
   );
 };
 
-// --- ★修正箇所: WALLET (Gemini Scan搭載) ---
+// --- サブコンポーネント: WALLET ---
 const WalletTab = () => {
   const { expenses, addExpense } = useNavStore();
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [payer, setPayer] = useState('Naoto');
-  const [isScanning, setIsScanning] = useState(false); // スキャン中フラグ
+  const [isScanning, setIsScanning] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const members = ['Naoto', 'Taira', 'Haga'];
 
-  // 画像スキャン処理
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsScanning(true);
     try {
-      // 画像をBase64に変換
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64String = reader.result as string;
-        
-        // Vercel API (Gemini) に送信
         const res = await fetch('/api/scan', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ image: base64String }),
         });
-        
         const data = await res.json();
-        
         if (data.title && data.amount) {
           setTitle(data.title);
           setAmount(data.amount.toString());
@@ -195,7 +193,6 @@ const WalletTab = () => {
 
   return (
     <div className="space-y-6 pb-24 px-4">
-      {/* Total Card */}
       <div className="bg-gradient-to-br from-green-900/50 to-zinc-900 border border-green-500/30 p-6 rounded-2xl relative overflow-hidden shadow-lg">
         <div className="relative z-10">
           <div className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Total Budget</div>
@@ -204,9 +201,7 @@ const WalletTab = () => {
         <Wallet className="absolute -right-4 -bottom-4 text-green-500/10 w-32 h-32" />
       </div>
 
-      {/* Input */}
       <div className="bg-zinc-900/80 p-4 rounded-2xl border border-zinc-800 relative overflow-hidden">
-        {/* スキャン中オーバーレイ */}
         {isScanning && (
           <div className="absolute inset-0 bg-black/80 z-20 flex flex-col items-center justify-center backdrop-blur-sm">
             <Loader2 className="animate-spin text-green-500 mb-2" size={32} />
@@ -219,12 +214,11 @@ const WalletTab = () => {
             <input type="text" placeholder="品目 (例: ガソリン)" value={title} onChange={e => setTitle(e.target.value)}
               className="flex-1 bg-black/50 border border-zinc-700 rounded-xl p-3 text-white focus:border-green-500 outline-none" />
             
-            {/* Camera Button */}
             <input 
               type="file" 
               ref={fileInputRef} 
               accept="image/*" 
-              capture="environment" // スマホの背面カメラを優先起動
+              capture="environment"
               onChange={handleFileChange} 
               className="hidden" 
             />
@@ -250,7 +244,6 @@ const WalletTab = () => {
         </div>
       </div>
 
-      {/* Settlement */}
       {settlements.length > 0 && (
         <div className="space-y-2">
           <h3 className="text-xs font-bold text-zinc-500 uppercase px-1">Settlement Plan</h3>
@@ -272,30 +265,104 @@ const WalletTab = () => {
 
 // --- サブコンポーネント: GUIDE ---
 const GuideTab = () => {
-  const plans = [
-    { title: "関門海峡", desc: "本州と九州を結ぶ要衝。夜景が綺麗。", icon: <Camera />, time: "Day 1", color: "from-blue-500 to-cyan-500" },
-    { title: "伊勢神宮 内宮", desc: "日本人の心のふるさと。五十鈴川で清める。", icon: <MapPin />, time: "Day 2", color: "from-green-500 to-emerald-600" },
-    { title: "おかげ横丁", desc: "赤福氷、松阪牛串、伊勢うどん...", icon: <Utensils />, time: "Day 2", color: "from-orange-500 to-red-500" },
-    { title: "鈴鹿サーキット", desc: "F1開催地。レーシングコースを疾走？", icon: <Activity />, time: "Goal", color: "from-red-600 to-rose-600" },
-  ];
+  const { waypoints } = useNavStore();
+  const [selectedSpot, setSelectedSpot] = useState<any>(null);
+
+  const guideSpots = waypoints.filter(w => 
+    w.description || w.type === 'sightseeing' || w.type === 'hotel' || w.id === 'vison_onsen' || w.id === 'arima_onsen'
+  );
+
   return (
-    <div className="space-y-4 pb-24 px-4">
+    <div className="pb-24 px-4 relative">
+      <h3 className="text-xs font-bold text-zinc-500 uppercase mb-4 px-1">TRAVEL GUIDEBOOK</h3>
+      
       <div className="grid gap-4">
-        {plans.map((p, i) => (
-          <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden group">
-            <div className={`h-24 bg-gradient-to-r ${p.color} p-4 relative`}>
-              <div className="absolute right-4 top-4 bg-black/30 backdrop-blur-md px-2 py-1 rounded text-xs text-white font-bold">{p.time}</div>
-              <div className="absolute -bottom-6 left-4 w-12 h-12 rounded-xl bg-zinc-900 border-4 border-zinc-900 flex items-center justify-center text-white shadow-lg">
-                {p.icon}
+        {guideSpots.map((spot) => (
+          <motion.button
+            key={spot.id}
+            layoutId={`card-${spot.id}`}
+            onClick={() => setSelectedSpot(spot)}
+            className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden text-left relative group w-full"
+          >
+            <div className="h-32 w-full relative overflow-hidden">
+              {spot.image ? (
+                <img src={spot.image} alt={spot.name} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />
+              ) : (
+                <div className="w-full h-full bg-zinc-800" />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 to-transparent"></div>
+              
+              <div className="absolute top-2 right-2 bg-black/40 backdrop-blur-md p-2 rounded-lg border border-white/10">
+                 {spot.type === 'hotel' ? <div className="text-xs">🏨</div> : 
+                  spot.type === 'sightseeing' ? <div className="text-xs">📸</div> : 
+                  <div className="text-xs">♨️</div>}
               </div>
             </div>
-            <div className="pt-8 pb-4 px-4">
-              <h3 className="font-bold text-lg text-white mb-1">{p.title}</h3>
-              <p className="text-sm text-zinc-500">{p.desc}</p>
+
+            <div className="p-4 -mt-6 relative z-10">
+              <h3 className="font-bold text-lg text-white leading-tight mb-1">{spot.name}</h3>
+              <p className="text-xs text-zinc-400 line-clamp-2">{spot.description || "詳細情報なし"}</p>
             </div>
-          </div>
+          </motion.button>
         ))}
       </div>
+
+      <AnimatePresence>
+        {selectedSpot && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setSelectedSpot(null)}
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50"
+            />
+            <motion.div
+              layoutId={`card-${selectedSpot.id}`}
+              className="fixed inset-x-4 top-20 bottom-24 bg-zinc-900 border border-zinc-700 rounded-3xl overflow-hidden z-50 flex flex-col shadow-2xl"
+            >
+              <div className="relative h-64 shrink-0">
+                {selectedSpot.image && (
+                  <img src={selectedSpot.image} alt={selectedSpot.name} className="w-full h-full object-cover" />
+                )}
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setSelectedSpot(null); }}
+                  className="absolute top-4 right-4 bg-black/50 p-2 rounded-full text-white backdrop-blur-md z-10"
+                >
+                  <X size={20} />
+                </button>
+                <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-transparent to-transparent"></div>
+                <div className="absolute bottom-4 left-4 right-4">
+                  <h2 className="text-2xl font-bold text-white leading-tight">{selectedSpot.name}</h2>
+                </div>
+              </div>
+
+              <div className="p-6 flex-1 overflow-y-auto">
+                <div className="prose prose-invert">
+                  <p className="text-zinc-300 leading-relaxed text-sm">
+                    {selectedSpot.description || "詳細情報はまだありません。"}
+                  </p>
+
+                  <div className="mt-6 space-y-3">
+                    <h4 className="text-xs font-bold text-zinc-500 uppercase">ACTIONS</h4>
+                    
+                    <a 
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedSpot.name)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between bg-zinc-800 p-4 rounded-xl active:bg-zinc-700 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <MapPin className="text-blue-500" />
+                        <span className="font-bold text-sm">Google Mapで開く</span>
+                      </div>
+                      <ExternalLink size={16} className="text-zinc-500" />
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -324,7 +391,7 @@ export const CoPilotPage: React.FC = () => {
           {activeTab === 'command' && (
             <motion.div key="command" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="px-4 pb-24">
               <div className="mb-8">
-                <DJPanel onSend={handleSend} />
+                <DJPanel />
               </div>
               <h2 className="text-xs font-bold text-zinc-500 uppercase mb-3 px-1">NAVIGATION HACK</h2>
               <div className="space-y-3">

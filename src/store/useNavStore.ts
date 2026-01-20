@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { db } from '../lib/firebase';
 import { ref, onValue, set as firebaseSet, remove, push } from 'firebase/database';
 import type { NavState, Waypoint, Expense, AppNotification } from '../types';
-import { initialGeoFences, type GeoFence } from '../data/geoFences'; // typeを追加
+import { initialGeoFences, type GeoFence } from '../data/geoFences';
 
 // Storeのアクション定義
 interface NavActions {
@@ -15,8 +15,6 @@ interface NavActions {
   addExpense: (title: string, amount: number, payer: string) => void;
   removeExpense: (id: string) => void;
   updateLocation: (lat: number, lng: number, speed: number | null) => void;
-  
-  // ★追加: ジオフェンスリセット用
   resetGeoFences: () => void;
 }
 
@@ -32,6 +30,7 @@ const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: numbe
   return R * c;
 };
 
+// エリア名推定
 const guessLocationName = (_lat: number, lng: number) => {
   if (lng < 131.0) return "福岡県 / 関門エリア";
   if (lng < 131.8) return "大分県内"; 
@@ -44,7 +43,7 @@ const guessLocationName = (_lat: number, lng: number) => {
   return "Highway Cruising";
 };
 
-// State拡張のためにインターフェース拡張
+// State拡張
 interface ExtendedNavState extends NavState {
   geoFences: GeoFence[];
 }
@@ -66,24 +65,94 @@ export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => (
     jamDistance: 0,
     nextReg: '順調'
   },
-  geoFences: initialGeoFences, // ★初期データロード
+  geoFences: initialGeoFences,
 
+  // ★Grand Tour 2026 Itinerary with Rich Data
   waypoints: [
-    { id: 'start', name: 'Start: 自宅 (宮河内)', coords: { lat: 33.1916, lng: 131.7021 }, type: 'start' },
+    // Day 0: 出発 (1/26)
+    { 
+      id: 'start', name: 'Start: 自宅 (宮河内)', coords: { lat: 33.1916, lng: 131.7021 }, type: 'start',
+      description: '旅の始まり。忘れ物はない？戸締まりヨシ！男3人のグランドツアーがいよいよ開幕。',
+      image: 'https://images.unsplash.com/photo-1542332213-31f87348057f?q=80&w=800&auto=format&fit=crop'
+    },
     { id: 'pick_haga', name: 'Pick: 芳賀 (丹川)', coords: { lat: 33.2050, lng: 131.7050 }, type: 'pickup' },
     { id: 'pick_taira', name: 'Pick: 平良 (萩原)', coords: { lat: 33.2436, lng: 131.6418 }, type: 'pickup' },
-    { id: 'mekari', name: 'めかりPA (関門橋)', coords: { lat: 33.9598, lng: 130.9616 }, type: 'parking' },
-    { id: 'miyajima', name: '宮島SA (広島)', coords: { lat: 34.3315, lng: 132.2982 }, type: 'parking' },
-    { id: 'miki', name: '三木SA (兵庫)', coords: { lat: 34.8174, lng: 134.9804 }, type: 'parking' },
-    { id: 'tsuchiyama', name: '土山SA (新名神)', coords: { lat: 34.9158, lng: 136.2935 }, type: 'parking' },
-    { id: 'suzuka', name: '鈴鹿サーキット', coords: { lat: 34.8487, lng: 136.5391 }, type: 'hotel' },
-    { id: 'ise_jingu', name: '伊勢神宮 内宮', coords: { lat: 34.4560, lng: 136.7250 }, type: 'sightseeing' },
-    { id: 'okage', name: 'おかげ横丁', coords: { lat: 34.4631, lng: 136.7228 }, type: 'sightseeing' },
-    { id: 'mitou', name: '美東SA (山口)', coords: { lat: 34.1535, lng: 131.3373 }, type: 'parking' },
-    { id: 'dannoura', name: '壇之浦PA (九州へ)', coords: { lat: 33.9665, lng: 130.9504 }, type: 'parking' },
+    
+    // Day 0 Night: 深夜の爆走
+    { 
+      id: 'kanmon', name: '関門橋 (本州へ)', coords: { lat: 33.9598, lng: 130.9616 }, type: 'parking',
+      description: '九州と本州を結ぶ架け橋。ここを越えれば旅の本番。深夜の関門海峡の夜景は必見。',
+      image: 'https://images.unsplash.com/photo-1571661601662-72049e25d028?q=80&w=800&auto=format&fit=crop'
+    },
+    { id: 'miyajima_sa', name: '宮島SA (深夜休憩)', coords: { lat: 34.3315, lng: 132.2982 }, type: 'parking' },
+    
+    // Day 1: 伊勢・絶景・肉 (1/27)
+    { 
+      id: 'ise_jingu', name: '伊勢神宮 内宮 (参拝)', coords: { lat: 34.4560, lng: 136.7250 }, type: 'sightseeing',
+      description: '日本人の心のふるさと。2000年の歴史を持つ聖地。五十鈴川で身を清めてから正宮へ。',
+      image: 'https://images.unsplash.com/photo-1572935260193-27150098df24?q=80&w=800&auto=format&fit=crop' 
+    },
+    { 
+      id: 'okage', name: 'おかげ横丁 (食べ歩き)', coords: { lat: 34.4631, lng: 136.7228 }, type: 'sightseeing',
+      description: '江戸時代の町並みを再現した通り。赤福本店、松阪牛串、伊勢うどん…食べ歩き天国。',
+      image: 'https://images.unsplash.com/photo-1624867490072-5264b360f772?q=80&w=800&auto=format&fit=crop'
+    },
+    { 
+      id: 'yokoyama', name: '横山展望台 (絶景カフェ)', coords: { lat: 34.3015, lng: 136.7820 }, type: 'sightseeing',
+      description: '英虞湾（あごわん）を一望できる絶景テラス。サミット会場にもなった場所。夕焼け時のマジックアワーが狙い目。',
+      image: 'https://images.unsplash.com/photo-1605623068996-52ce6497f537?q=80&w=800&auto=format&fit=crop'
+    },
+    { 
+      id: 'vison_onsen', name: '♨️ VISON 本草湯 (薬草湯)', coords: { lat: 34.4667, lng: 136.5222 }, type: 'parking',
+      description: '三重大学とロート製薬が開発した「薬草湯」。天井が高く開放的な空間で、旅の疲れを整える。',
+      image: 'https://images.unsplash.com/photo-1560965034-7a91173872fb?q=80&w=800&auto=format&fit=crop'
+    },
+    { 
+      id: 'matsusaka_beef', name: '🥩 一升びん本店 (松阪牛)', coords: { lat: 34.5684, lng: 136.5401 }, type: 'sightseeing',
+      description: '松阪牛の名店。回転焼肉ではなく本店でガッツリと。味噌ダレホルモンとA5カルビで優勝確定。',
+      image: 'https://images.unsplash.com/photo-1558030006-450675393462?q=80&w=800&auto=format&fit=crop'
+    },
+    { 
+      id: 'dormy_tsu', name: '🏨 ドーミーイン津 (宿泊)', coords: { lat: 34.7186, lng: 136.5113 }, type: 'hotel',
+      description: 'サウナーの聖地ドーミーイン。21:30からの夜鳴きそばは必須。シングル3部屋で爆睡してHP全回復。',
+      image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=800&auto=format&fit=crop'
+    },
+
+    // Day 2: 奈良・金泉・神戸 (1/28)
+    { 
+      id: 'nara_park', name: '奈良公園 (鹿・大仏)', coords: { lat: 34.6850, lng: 135.8430 }, type: 'sightseeing',
+      description: '1300年の古都。東大寺の大仏と、1200頭の野生の鹿。鹿せんべいはすぐ食べられるので注意。',
+      image: 'https://images.unsplash.com/photo-1579405625345-d86b97666272?q=80&w=800&auto=format&fit=crop'
+    },
+    { 
+      id: 'arima_onsen', name: '♨️ 有馬温泉 金の湯', coords: { lat: 34.7968, lng: 135.2478 }, type: 'parking',
+      description: '日本三古湯の一つ。赤茶色の「金泉」は塩分と鉄分が濃厚。湯上がりサイダーを忘れずに。',
+      image: 'https://images.unsplash.com/photo-1629858547492-b05421c60d9d?q=80&w=800&auto=format&fit=crop'
+    },
+    { 
+      id: 'kobe_hotel', name: '🏨 カンデオホテルズ神戸 (宿泊)', coords: { lat: 34.6908, lng: 135.1914 }, type: 'hotel',
+      description: 'スタイリッシュなスカイスパ完備。神戸の夜景を見下ろしながら入浴できる。立地最高。',
+      image: 'https://images.unsplash.com/photo-1625244724120-1fd1d34d00f6?q=80&w=800&auto=format&fit=crop'
+    },
+
+    // Day 3: 陸路完全走破 (1/29)
+    { 
+      id: 'himeji', name: '姫路城 (通過/チラ見)', coords: { lat: 34.8394, lng: 134.6939 }, type: 'sightseeing',
+      description: '別名「白鷺城」。世界遺産。高速からもその白く輝く姿が見えるかも。',
+      image: 'https://images.unsplash.com/photo-1598424976729-197e44927f1c?q=80&w=800&auto=format&fit=crop'
+    },
+    { 
+      id: 'hiroshima_okonomi', name: '🍴 広島お好み村 (ランチ)', coords: { lat: 34.3915, lng: 132.4630 }, type: 'sightseeing',
+      description: '広島のソウルフード。麺入りの重ね焼き。ヘラを使って鉄板から直で食べるのが流儀。',
+      image: 'https://images.unsplash.com/photo-1582236592263-471239845942?q=80&w=800&auto=format&fit=crop'
+    },
+    { id: 'miyajima_sa_day', name: '⛩️ 宮島SA (スタバ休憩)', coords: { lat: 34.3315, lng: 132.2982 }, type: 'parking' },
+    { id: 'mitou_sa', name: '美東SA (山口/ラスト休憩)', coords: { lat: 34.1535, lng: 131.3373 }, type: 'parking' },
+    { id: 'kanmon_return', name: '関門橋 (九州帰還)', coords: { lat: 33.9598, lng: 130.9616 }, type: 'parking' },
     { id: 'goal', name: 'Goal: 自宅 (宮河内)', coords: { lat: 33.1916, lng: 131.7021 }, type: 'goal' },
   ],
 
+  // 最初の目的地をセット
   nextWaypoint: { id: 'pick_haga', name: 'Pick: 芳賀 (丹川)', coords: { lat: 33.2050, lng: 131.7050 }, type: 'pickup' } as Waypoint,
 
   // --- Actions ---
@@ -179,8 +248,7 @@ export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => (
     }
     const kmh = speed ? Math.round(speed * 3.6) : 0;
 
-    // ★ジオフェンスチェックロジック
-    // 未発火のフェンスのうち、半径内に入ったものを探す
+    // ジオフェンスチェック
     const hitFence = state.geoFences.find(fence => {
       if (fence.triggered) return false;
       const dist = calculateDistance(lat, lng, fence.lat, fence.lng);
@@ -188,22 +256,18 @@ export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => (
     });
 
     if (hitFence) {
-      // ヒットしたら通知を送り、triggeredフラグを立てる
       console.log("GeoFence Hit:", hitFence.name);
       
-      // 1. 全員に通知
       const notifRef = ref(db, 'state/activeNotification');
       firebaseSet(notifRef, {
         id: Date.now().toString(),
-        type: 'info', // 自動ガイド
+        type: 'info',
         message: `📍 ${hitFence.name} に到達しました`,
         sender: 'Serena AI',
         timestamp: Date.now(),
-        // 読み上げ用のテキストをペイロードに含める
         payload: { tts: hitFence.message } 
       });
 
-      // 2. State更新 (二度鳴らないように)
       set(prev => ({
         geoFences: prev.geoFences.map(f => f.id === hitFence.id ? { ...f, triggered: true } : f)
       }));
