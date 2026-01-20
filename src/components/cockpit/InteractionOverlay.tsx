@@ -1,91 +1,87 @@
 import React, { useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useNavStore } from '../../store/useNavStore';
-import { Navigation, Music, Info, Check, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Music, Coffee, Info, MapPin } from 'lucide-react'; // Bellを削除
+import { soundManager } from '../../utils/SoundManager';
 
 export const InteractionOverlay: React.FC = () => {
-  // ★修正: 使っていない setNextWaypoint を削除しました
-  const { activeNotification, clearNotification } = useNavStore();
+  const { activeNotification, clearNotification, mode } = useNavStore();
 
-  // 8秒後に自動で消えるタイマー
   useEffect(() => {
     if (activeNotification) {
+      // 通知音を鳴らす (SoundManagerにこのメソッドを追加します)
+      soundManager.playNotification();
+
+      // 自動読み上げ (Cockpitモードのみ)
+      if (mode === 'driver') {
+        const textToRead = activeNotification.payload?.tts || activeNotification.message;
+        
+        window.speechSynthesis.cancel();
+        const uttr = new SpeechSynthesisUtterance(textToRead);
+        uttr.lang = "ja-JP";
+        uttr.rate = 1.1;
+        
+        setTimeout(() => {
+          window.speechSynthesis.speak(uttr);
+        }, 1000);
+      }
+
       const timer = setTimeout(() => {
         clearNotification();
-      }, 8000);
+      }, 10000);
       return () => clearTimeout(timer);
     }
-  }, [activeNotification, clearNotification]);
-
-  const handleAccept = () => {
-    // 将来的にここに「目的地セット」などのロジックを追加します
-    console.log("Accepted notification:", activeNotification);
-    clearNotification();
-  };
+  }, [activeNotification, clearNotification, mode]);
 
   return (
-    <div className="absolute top-0 left-0 w-full flex justify-center z-50 pointer-events-none pt-4">
-      <AnimatePresence>
-        {activeNotification && (
-          <motion.div
-            key={activeNotification.id}
-            initial={{ y: -150, opacity: 0, scale: 0.9 }}
-            animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: -150, opacity: 0, scale: 0.9 }}
-            transition={{ type: "spring", stiffness: 400, damping: 25 }}
-            className="pointer-events-auto"
-          >
-            {/* Glassmorphism Card */}
-            <div className="bg-zinc-950/80 backdrop-blur-xl border border-white/10 rounded-3xl p-3 pr-5 shadow-2xl flex items-center gap-4 min-w-[380px] max-w-[90vw]">
-              
-              {/* Icon / Avatar Area */}
-              <div className="relative">
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
-                  activeNotification.type === 'rest' ? 'bg-orange-500/20 text-orange-400' :
-                  activeNotification.type === 'music' ? 'bg-pink-500/20 text-pink-400' :
-                  'bg-blue-500/20 text-blue-400'
-                }`}>
-                  {activeNotification.type === 'rest' && <Navigation size={28} />}
-                  {activeNotification.type === 'music' && <Music size={28} />}
-                  {activeNotification.type === 'info' && <Info size={28} />}
-                  {activeNotification.type === 'warning' && <Info size={28} />}
-                </div>
-                {/* Ping Animation */}
-                <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+    <AnimatePresence>
+      {activeNotification && (
+        <motion.div
+          initial={{ opacity: 0, y: -50, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -20, scale: 0.9 }}
+          className="absolute top-4 left-4 right-4 z-50 flex justify-center pointer-events-none"
+        >
+          <div className="bg-zinc-900/90 backdrop-blur-xl border border-zinc-700 text-white p-4 rounded-2xl shadow-2xl flex items-center gap-4 max-w-lg w-full pointer-events-auto ring-1 ring-white/20">
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${
+              activeNotification.type === 'rest' ? 'bg-orange-500/20 text-orange-400' :
+              activeNotification.type === 'music' ? 'bg-pink-500/20 text-pink-400' :
+              activeNotification.sender === 'Serena AI' ? 'bg-blue-500/20 text-blue-400' :
+              'bg-green-500/20 text-green-400'
+            }`}>
+              {activeNotification.type === 'rest' && <Coffee size={24} />}
+              {activeNotification.type === 'music' && <Music size={24} />}
+              {activeNotification.sender === 'Serena AI' ? <MapPin size={24} /> : activeNotification.type === 'info' && <Info size={24} />}
+            </div>
+            
+            <div className="flex-1 min-w-0">
+              <div className="flex justify-between items-baseline mb-1">
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                  INCOMING REQUEST
+                </span>
+                <span className="text-[10px] font-bold text-zinc-500">
+                  FROM: {activeNotification.sender}
                 </span>
               </div>
-
-              {/* Text Content */}
-              <div className="flex-1 text-left">
-                <p className="text-[10px] font-bold tracking-widest text-zinc-500 uppercase">
-                  REQUEST FROM {activeNotification.sender || "CO-PILOT"}
+              <p className="font-bold text-lg leading-tight truncate">
+                {activeNotification.message}
+              </p>
+              {activeNotification.payload?.tts && (
+                <p className="text-xs text-zinc-400 mt-1 line-clamp-2">
+                  {activeNotification.payload.tts}
                 </p>
-                <p className="text-white font-bold text-lg leading-tight">
-                  {activeNotification.message}
-                </p>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-2 border-l border-white/10 pl-4">
-                <button 
-                  onClick={handleAccept}
-                  className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center hover:scale-110 active:scale-95 transition-transform"
-                >
-                  <Check size={20} strokeWidth={3} />
-                </button>
-                <button 
-                  onClick={clearNotification}
-                  className="w-10 h-10 rounded-full bg-zinc-800 text-zinc-400 flex items-center justify-center hover:bg-zinc-700 hover:text-white transition-colors"
-                >
-                  <X size={20} />
-                </button>
-              </div>
+              )}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+
+            <button 
+              onClick={clearNotification}
+              className="p-2 hover:bg-white/10 rounded-full transition-colors"
+            >
+              <div className="text-xs font-bold text-zinc-500">DISMISS</div>
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };

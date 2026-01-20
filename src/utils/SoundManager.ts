@@ -1,70 +1,40 @@
 class SoundEngine {
-  private ctx: AudioContext | null = null;
-  private masterGain: GainNode | null = null;
+  private audioCtx: AudioContext | null = null;
 
-  // オーディオエンジンの初期化（ユーザー操作が必要）
-  private init() {
-    if (!this.ctx) {
-      this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.value = 0.3; // 全体の音量
-      this.masterGain.connect(this.ctx.destination);
-    }
-    if (this.ctx.state === 'suspended') {
-      this.ctx.resume();
+  constructor() {
+    if (typeof window !== 'undefined') {
+      this.audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
   }
 
-  // 1. カッ（UIクリック音）- 短く上品な高音
-  playClick() {
-    this.init();
-    if (!this.ctx || !this.masterGain) return;
+  private playTone(freq: number, type: OscillatorType, duration: number, startTime: number = 0) {
+    if (!this.audioCtx) return;
+    const osc = this.audioCtx.createOscillator();
+    const gain = this.audioCtx.createGain();
 
-    const t = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(800, t);
-    osc.frequency.exponentialRampToValueAtTime(1200, t + 0.05);
-
-    gain.gain.setValueAtTime(0.5, t);
-    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, this.audioCtx.currentTime + startTime);
+    
+    gain.gain.setValueAtTime(0.1, this.audioCtx.currentTime + startTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, this.audioCtx.currentTime + startTime + duration);
 
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.audioCtx.destination);
 
-    osc.start(t);
-    osc.stop(t + 0.1);
+    osc.start(this.audioCtx.currentTime + startTime);
+    osc.stop(this.audioCtx.currentTime + startTime + duration);
   }
 
-  // 2. フワァァン（起動・認証音）- 和音で広がりを持たせる
-  playWelcome() {
-    this.init();
-    if (!this.ctx || !this.masterGain) return;
+  // UIクリック音
+  playClick() {
+    this.playTone(800, 'sine', 0.1);
+  }
 
-    const t = this.ctx.currentTime;
-    // Cメジャー7th (C, E, G, B) の構成音で高級感を演出
-    const freqs = [261.63, 329.63, 392.00, 493.88, 523.25]; 
-
-    freqs.forEach((f, i) => {
-      const osc = this.ctx!.createOscillator();
-      const gain = this.ctx!.createGain();
-      
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(f, t);
-      
-      // ふんわり立ち上がり、ゆっくり消える
-      gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(0.1, t + 0.5 + (i * 0.1)); // ズレを作って広がりを出す
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 4.0);
-
-      osc.connect(gain);
-      gain.connect(this.masterGain!);
-
-      osc.start(t);
-      osc.stop(t + 4.0);
-    });
+  // ★追加: 通知音 (ポン！という音)
+  playNotification() {
+    if (!this.audioCtx) return;
+    this.playTone(600, 'sine', 0.1, 0);
+    this.playTone(800, 'sine', 0.3, 0.1);
   }
 }
 

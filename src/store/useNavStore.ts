@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { db } from '../lib/firebase';
 import { ref, onValue, set as firebaseSet, remove, push } from 'firebase/database';
 import type { NavState, Waypoint, Expense, AppNotification } from '../types';
+import { initialGeoFences, type GeoFence } from '../data/geoFences'; // typeを追加
 
 // Storeのアクション定義
 interface NavActions {
@@ -14,6 +15,9 @@ interface NavActions {
   addExpense: (title: string, amount: number, payer: string) => void;
   removeExpense: (id: string) => void;
   updateLocation: (lat: number, lng: number, speed: number | null) => void;
+  
+  // ★追加: ジオフェンスリセット用
+  resetGeoFences: () => void;
 }
 
 // 距離計算ヘルパー
@@ -28,7 +32,6 @@ const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: numbe
   return R * c;
 };
 
-// エリア判定ヘルパー
 const guessLocationName = (_lat: number, lng: number) => {
   if (lng < 131.0) return "福岡県 / 関門エリア";
   if (lng < 131.8) return "大分県内"; 
@@ -41,11 +44,16 @@ const guessLocationName = (_lat: number, lng: number) => {
   return "Highway Cruising";
 };
 
-export const useNavStore = create<NavState & NavActions>((set, get) => ({
+// State拡張のためにインターフェース拡張
+interface ExtendedNavState extends NavState {
+  geoFences: GeoFence[];
+}
+
+export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => ({
   // --- Initial State ---
   mode: 'driver',
   currentUser: null,
-  currentLocation: { lat: 33.1916, lng: 131.7021 }, // Start: 宮河内ハイランド自宅
+  currentLocation: { lat: 33.1916, lng: 131.7021 },
   currentSpeed: 0,
   currentAreaText: "READY TO DEPART",
   nearestFacilityText: "GPS信号 待機中...",
@@ -58,40 +66,24 @@ export const useNavStore = create<NavState & NavActions>((set, get) => ({
     jamDistance: 0,
     nextReg: '順調'
   },
+  geoFences: initialGeoFences, // ★初期データロード
 
-  // ★リアル座標データ (Grand Tour 2026 - ALL LAND ROUTE)
   waypoints: [
-    // Day 1: Oita (Miyakawachi) -> Kanmon -> Suzuka
-    // 宮河内ハイランド 66-4 付近
     { id: 'start', name: 'Start: 自宅 (宮河内)', coords: { lat: 33.1916, lng: 131.7021 }, type: 'start' },
-    
-    // 芳賀さん (丹川) - 宮河内から近いので1番目
     { id: 'pick_haga', name: 'Pick: 芳賀 (丹川)', coords: { lat: 33.2050, lng: 131.7050 }, type: 'pickup' },
-    
-    // 平良さん (萩原)
     { id: 'pick_taira', name: 'Pick: 平良 (萩原)', coords: { lat: 33.2436, lng: 131.6418 }, type: 'pickup' },
-    
-    // 以降、本州へ
     { id: 'mekari', name: 'めかりPA (関門橋)', coords: { lat: 33.9598, lng: 130.9616 }, type: 'parking' },
     { id: 'miyajima', name: '宮島SA (広島)', coords: { lat: 34.3315, lng: 132.2982 }, type: 'parking' },
     { id: 'miki', name: '三木SA (兵庫)', coords: { lat: 34.8174, lng: 134.9804 }, type: 'parking' },
     { id: 'tsuchiyama', name: '土山SA (新名神)', coords: { lat: 34.9158, lng: 136.2935 }, type: 'parking' },
-    
     { id: 'suzuka', name: '鈴鹿サーキット', coords: { lat: 34.8487, lng: 136.5391 }, type: 'hotel' },
-    
-    // Day 2: Ise Sightseeing
     { id: 'ise_jingu', name: '伊勢神宮 内宮', coords: { lat: 34.4560, lng: 136.7250 }, type: 'sightseeing' },
     { id: 'okage', name: 'おかげ横丁', coords: { lat: 34.4631, lng: 136.7228 }, type: 'sightseeing' },
-    
-    // Day 3: Return
     { id: 'mitou', name: '美東SA (山口)', coords: { lat: 34.1535, lng: 131.3373 }, type: 'parking' },
     { id: 'dannoura', name: '壇之浦PA (九州へ)', coords: { lat: 33.9665, lng: 130.9504 }, type: 'parking' },
-    
-    // Goal: 宮河内ハイランド自宅
     { id: 'goal', name: 'Goal: 自宅 (宮河内)', coords: { lat: 33.1916, lng: 131.7021 }, type: 'goal' },
   ],
 
-  // 初期ターゲット: 最初のピックアップ場所 (芳賀さん)
   nextWaypoint: { id: 'pick_haga', name: 'Pick: 芳賀 (丹川)', coords: { lat: 33.2050, lng: 131.7050 }, type: 'pickup' } as Waypoint,
 
   // --- Actions ---
@@ -159,6 +151,10 @@ export const useNavStore = create<NavState & NavActions>((set, get) => ({
     remove(expenseRef);
   },
 
+  resetGeoFences: () => {
+    set({ geoFences: initialGeoFences });
+  },
+
   updateLocation: (lat, lng, speed) => {
     const state = get();
     const nextWP = state.nextWaypoint;
@@ -182,6 +178,37 @@ export const useNavStore = create<NavState & NavActions>((set, get) => ({
       goalText = `Goalまで残り ${Math.round(distToGoal)} km`;
     }
     const kmh = speed ? Math.round(speed * 3.6) : 0;
+
+    // ★ジオフェンスチェックロジック
+    // 未発火のフェンスのうち、半径内に入ったものを探す
+    const hitFence = state.geoFences.find(fence => {
+      if (fence.triggered) return false;
+      const dist = calculateDistance(lat, lng, fence.lat, fence.lng);
+      return dist <= fence.radius;
+    });
+
+    if (hitFence) {
+      // ヒットしたら通知を送り、triggeredフラグを立てる
+      console.log("GeoFence Hit:", hitFence.name);
+      
+      // 1. 全員に通知
+      const notifRef = ref(db, 'state/activeNotification');
+      firebaseSet(notifRef, {
+        id: Date.now().toString(),
+        type: 'info', // 自動ガイド
+        message: `📍 ${hitFence.name} に到達しました`,
+        sender: 'Serena AI',
+        timestamp: Date.now(),
+        // 読み上げ用のテキストをペイロードに含める
+        payload: { tts: hitFence.message } 
+      });
+
+      // 2. State更新 (二度鳴らないように)
+      set(prev => ({
+        geoFences: prev.geoFences.map(f => f.id === hitFence.id ? { ...f, triggered: true } : f)
+      }));
+    }
+
     set({
       currentLocation: { lat, lng },
       currentSpeed: kmh,
