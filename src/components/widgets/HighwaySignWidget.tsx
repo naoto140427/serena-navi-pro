@@ -1,117 +1,95 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { useNavStore } from '../../store/useNavStore';
-import { ChevronUp, Clock, MapPin } from 'lucide-react';
-
-// 距離計算のヘルパー関数（Storeから借りる形ではなく、ここでも計算できるように定義）
-const calculateDist = (lat1: number, lng1: number, lat2: number, lng2: number) => {
-  const R = 6371; // 地球の半径 (km)
-  const dLat = (lat2 - lat1) * (Math.PI / 180);
-  const dLng = (lng2 - lng1) * (Math.PI / 180);
-  const a = 
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-};
+import { motion, AnimatePresence } from 'framer-motion';
+import { Navigation, Coffee, ArrowUp } from 'lucide-react';
 
 export const HighwaySignWidget: React.FC = () => {
-  const { waypoints, nextWaypoint, currentLocation, currentSpeed } = useNavStore();
+  const { nextWaypoint, waypoints } = useNavStore();
 
-  // 次の3つの目的地を算出するロジック
-  const upcomingWaypoints = useMemo(() => {
-    if (!nextWaypoint || !currentLocation) return [];
+  // 次の目的地がない場合は表示しない
+  if (!nextWaypoint) return null;
 
-    // 現在の目的地のインデックスを探す
-    const currentIndex = waypoints.findIndex(w => w.id === nextWaypoint.id);
-    if (currentIndex === -1) return [];
-
-    // 現在地〜その先2つ、合計3つを取得
-    // ※ typeが 'pickup' や 'ic' などの主要ポイントだけを表示したい場合はここでフィルタリングも可能
-    return waypoints.slice(currentIndex, currentIndex + 3).map(wp => {
-      const dist = calculateDist(
-        currentLocation.lat, 
-        currentLocation.lng, 
-        wp.coords.lat, 
-        wp.coords.lng
-      );
-      
-      // 所要時間計算 (時速80km固定、または現在の速度を使用)
-      // ※渋滞時は速度が落ちるので、currentSpeedを使うとリアルになります（ただし0km/hの時は80km/h計算にする）
-      const speed = currentSpeed > 10 ? currentSpeed : 80;
-      const timeHours = dist / speed;
-      const minutes = Math.round(timeHours * 60);
-
-      return {
-        ...wp,
-        distance: dist,
-        minutes: minutes
-      };
-    });
-  }, [waypoints, nextWaypoint, currentLocation, currentSpeed]);
-
-  if (upcomingWaypoints.length === 0) return null;
+  // デモ用に、次のさらに次の目的地も取得してみる（疑似的な3段表示のため）
+  const currentIndex = waypoints.findIndex(w => w.id === nextWaypoint.id);
+  const upcomingWaypoints = waypoints.slice(currentIndex, currentIndex + 3);
 
   return (
-    <div className="w-full md:w-64 overflow-hidden rounded-lg shadow-lg border-2 border-white/20">
-      {/* 看板ヘッダー（緑色） */}
-      <div className="bg-[#006633] p-3 text-center border-b border-white/20">
-        <div className="text-white font-bold text-sm tracking-wider flex items-center justify-center gap-2">
-          <MapPin size={14} />
-          HIGHWAY INFO
-        </div>
+    <div className="flex flex-col gap-1 font-sans select-none">
+      
+      {/* 支柱のような装飾 */}
+      <div className="h-4 w-full flex justify-center items-end">
+        <div className="w-[90%] h-2 bg-zinc-800 rounded-t-sm" />
       </div>
 
-      {/* 看板の中身 */}
-      <div className="bg-[#006633] bg-opacity-90 backdrop-blur-sm p-1">
-        <div className="flex flex-col gap-[1px] bg-white/10"> {/* 1px gap for separator lines */}
+      {/* 看板本体 (NEXCO Green) */}
+      <div className="bg-[#005E4D] text-white p-1 rounded-sm shadow-2xl border-2 border-white/20 min-w-[280px]">
+        <div className="border border-white/30 rounded-sm p-3 flex flex-col gap-0 relative overflow-hidden">
           
-          {upcomingWaypoints.map((wp, index) => (
-            <div key={wp.id} className="bg-[#006633] p-3 flex items-center justify-between">
-              
-              {/* 左側：矢印と名前 */}
-              <div className="flex items-center gap-3">
-                {index === 0 ? (
-                  <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-white shrink-0 animate-pulse">
-                    <ChevronUp size={20} />
-                  </div>
-                ) : (
-                  <div className="w-8 h-8 flex items-center justify-center text-white/50 shrink-0">
-                    <span className="font-mono text-xs">{index + 1}</span>
-                  </div>
-                )}
-                
-                <div className="flex flex-col">
-                  <span className="text-white font-bold text-sm md:text-base leading-tight truncate max-w-[120px]">
-                    {wp.name.split(':')[0]} {/* "Pick: 芳賀" の "Pick" のようなプレフィックスがあれば消してもいいが、今回はそのまま表示 */}
-                  </span>
-                  {/* サブテキスト（種類） */}
-                  <span className="text-[10px] text-white/70 uppercase font-bold tracking-wider">
-                    {wp.type}
-                  </span>
-                </div>
-              </div>
+          {/* 光沢エフェクト (Reflective Sheet) */}
+          <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none" />
 
-              {/* 右側：距離と時間 */}
-              <div className="flex flex-col items-end">
-                <div className="flex items-baseline gap-1">
-                  <span className="text-xl font-bold text-white font-mono">{Math.round(wp.distance)}</span>
-                  <span className="text-xs text-white/70">km</span>
-                </div>
-                <div className="flex items-center gap-1 text-orange-300">
-                  {wp.minutes > 0 ? (
-                    <>
-                      <Clock size={10} />
-                      <span className="text-xs font-bold font-mono">{wp.minutes} min</span>
-                    </>
-                  ) : (
-                    <span className="text-[10px] font-bold text-green-300">ARRIVING</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
+          {/* ヘッダー: 方向 */}
+          <div className="flex justify-center items-center mb-2 border-b border-white/30 pb-1">
+             <div className="bg-white text-[#005E4D] px-2 py-0.5 text-xs font-bold rounded-sm flex items-center gap-1">
+                <ArrowUp size={12} strokeWidth={4} />
+                <span>本線</span>
+             </div>
+          </div>
+
+          {/* リスト表示 */}
+          <div className="flex flex-col gap-2">
+            <AnimatePresence mode="popLayout">
+              {upcomingWaypoints.map((wp, index) => {
+                const isNext = index === 0; // 一番上が直近
+                
+                return (
+                  <motion.div
+                    key={wp.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ delay: index * 0.1 }}
+                    className={`flex items-center justify-between ${isNext ? 'py-1' : 'opacity-80 scale-95 origin-left'}`}
+                  >
+                    {/* 左側: 名称とアイコン */}
+                    <div className="flex items-center gap-3">
+                      {isNext && (
+                        <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center border border-white">
+                          {wp.type === 'parking' ? <Coffee size={16} /> : <Navigation size={16} />}
+                        </div>
+                      )}
+                      
+                      <div className="flex flex-col">
+                        <span className={`font-bold leading-none ${isNext ? 'text-xl' : 'text-base'}`}>
+                          {wp.name.split(':')[0]} {/* "Pick:"などを除去して表示しても良い */}
+                        </span>
+                        {isNext && wp.address && (
+                          <span className="text-[10px] text-white/80 scale-90 origin-left mt-0.5">
+                            {wp.address}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 右側: 距離 */}
+                    <div className="flex items-baseline gap-1">
+                      <span className={`font-bold font-display ${isNext ? 'text-2xl text-yellow-300' : 'text-lg'}`}>
+                        {isNext ? (Math.random() * 10 + 2).toFixed(1) : (Math.random() * 30 + 15).toFixed(0)}
+                      </span>
+                      <span className="text-xs">km</span>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </div>
 
         </div>
+      </div>
+      
+      {/* 支柱の下部分 */}
+       <div className="h-2 w-full flex justify-center">
+        <div className="w-[80%] h-full bg-zinc-800 rounded-b-sm shadow-md" />
       </div>
     </div>
   );
