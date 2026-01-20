@@ -1,13 +1,13 @@
-// src/components/cockpit/InteractionOverlay.tsx
 import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavStore } from '../../store/useNavStore';
 import { Navigation, Music, Info, Check, X } from 'lucide-react';
 
 export const InteractionOverlay: React.FC = () => {
-  const { activeNotification, clearNotification, setNextWaypoint } = useNavStore();
+  // ★修正: 使っていない setNextWaypoint を削除しました
+  const { activeNotification, clearNotification } = useNavStore();
 
-  // 5秒後に自動で消えるタイマー
+  // 8秒後に自動で消えるタイマー
   useEffect(() => {
     if (activeNotification) {
       const timer = setTimeout(() => {
@@ -18,11 +18,8 @@ export const InteractionOverlay: React.FC = () => {
   }, [activeNotification, clearNotification]);
 
   const handleAccept = () => {
-    if (activeNotification?.type === 'info' && activeNotification.payload?.coords) {
-      // 目的地情報が含まれていればセットする
-      // (本来はStoreにaddWaypointなどの処理が必要だが、ここでは簡易的に既存IDをセットする例)
-      console.log("Accepted destination:", activeNotification.payload);
-    }
+    // 将来的にここに「目的地セット」などのロジックを追加します
+    console.log("Accepted notification:", activeNotification);
     clearNotification();
   };
 
@@ -31,6 +28,7 @@ export const InteractionOverlay: React.FC = () => {
       <AnimatePresence>
         {activeNotification && (
           <motion.div
+            key={activeNotification.id}
             initial={{ y: -150, opacity: 0, scale: 0.9 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: -150, opacity: 0, scale: 0.9 }}
@@ -50,6 +48,7 @@ export const InteractionOverlay: React.FC = () => {
                   {activeNotification.type === 'rest' && <Navigation size={28} />}
                   {activeNotification.type === 'music' && <Music size={28} />}
                   {activeNotification.type === 'info' && <Info size={28} />}
+                  {activeNotification.type === 'warning' && <Info size={28} />}
                 </div>
                 {/* Ping Animation */}
                 <span className="absolute -top-1 -right-1 flex h-3 w-3">
