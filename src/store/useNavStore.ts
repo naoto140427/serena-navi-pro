@@ -69,127 +69,139 @@ export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => (
 
 // src/store/useNavStore.ts の waypoints 部分
 
+// src/store/useNavStore.ts の waypoints 部分
+
   waypoints: [
-    // Day 0: 出発
+    // --- DAY 0 ---
     { 
-      id: 'start', name: 'Start: 自宅 (宮河内)', coords: { lat: 33.1916, lng: 131.7021 }, type: 'start',
-      description: 'Grand Tour 2026、作戦開始地点。',
-      image: 'https://images.unsplash.com/photo-1542332213-31f87348057f?q=80&w=800&auto=format&fit=crop',
-      quests: ['戸締まり確認', 'ガスの元栓確認', '財布・スマホ確認', '出発の記念撮影'],
-      tips: '忘れ物はない？特に充電ケーブルと眼鏡。'
+      id: 'start', name: 'Start: 宮河内', coords: { lat: 33.1916, lng: 131.7021 }, type: 'start',
+      description: '伝説の始まり。全ての準備は整った。',
+      image: 'https://images.unsplash.com/photo-1511527661048-7fe73d85e9a4?q=80&w=800',
+      quests: ['戸締まり・火の元よし', '財布・スマホよし', 'ETCカードよし'],
+      specs: { toilet: 'clean', smoking: true, vending: true },
+      weather: { type: 'cloudy', temp: '8°C' },
+      scheduledTime: '20:00'
     },
-    { id: 'pick_haga', name: 'Pick: 芳賀 (丹川)', coords: { lat: 33.2050, lng: 131.7050 }, type: 'pickup' },
-    { id: 'pick_taira', name: 'Pick: 平良 (萩原)', coords: { lat: 33.2436, lng: 131.6418 }, type: 'pickup' },
+    { id: 'pick_haga', name: 'Pick: 芳賀', coords: { lat: 33.2050, lng: 131.7050 }, type: 'pickup', scheduledTime: '20:15' },
+    { id: 'pick_taira', name: 'Pick: 平良', coords: { lat: 33.2436, lng: 131.6418 }, type: 'pickup', scheduledTime: '20:45' },
     
-    // Day 0 Night
+    // --- NIGHT CRUISE ---
     { 
-      id: 'kanmon', name: '関門橋 (本州へ)', coords: { lat: 33.9598, lng: 130.9616 }, type: 'parking',
-      description: '九州と本州の境界線。ここを越えれば旅の本番。',
-      image: 'https://images.unsplash.com/photo-1571661601662-72049e25d028?q=80&w=800&auto=format&fit=crop',
-      quests: ['橋の真ん中で叫ぶ（心の中で）', '夜景をバックに車内で乾杯（コーヒーで）'],
-      tips: '深夜のSAはトラックが多いので駐車位置に注意。'
+      id: 'kanmon', name: '関門橋 (めかりPA)', coords: { lat: 33.9598, lng: 130.9616 }, type: 'parking',
+      description: '九州脱出ポイント。夜景を見ながら最後の作戦会議。',
+      image: 'https://images.unsplash.com/photo-1617441865952-4e4f26040714?q=80&w=800',
+      quests: ['橋をバックに記念撮影', '眠気覚ましのコーヒー調達'],
+      driverIntel: { parking: '大型トラック多し。駐車枠内の接触に注意。', road: 'ここから本州。風が強い日はハンドル取られるので注意。' },
+      specs: { toilet: 'normal', smoking: true, vending: true },
+      weather: { type: 'sunny', temp: '6°C' },
+      scheduledTime: '22:30'
     },
-    { id: 'miyajima_sa', name: '宮島SA (深夜休憩)', coords: { lat: 34.3315, lng: 132.2982 }, type: 'parking' },
-    
-    // Day 1
+
+    // --- DAY 1: MIE ---
     { 
       id: 'ise_jingu', name: '伊勢神宮 内宮', coords: { lat: 34.4560, lng: 136.7250 }, type: 'sightseeing',
-      description: '日本人の心のふるさと。2000年の歴史を持つ聖地。',
-      image: 'https://images.unsplash.com/photo-1572935260193-27150098df24?q=80&w=800&auto=format&fit=crop',
+      description: '日本最強のパワースポット。2000年の歴史。',
+      image: 'https://images.unsplash.com/photo-1572935260193-27150098df24?q=80&w=800',
       budget: '¥',
-      quests: ['五十鈴川で手を清める', '正宮で感謝を伝える（願い事NG）', '大木からパワーを吸い取る'],
-      tips: '外宮→内宮の順が正式だが、今回は時間がないので内宮一点突破でいく。'
+      quests: ['五十鈴川で手を清める', '正宮で感謝のみを伝える', '交通安全のお守りを買う'],
+      driverIntel: { parking: 'A駐車場は激混み&狭い。遠くてもB駐車場を狙え。', road: 'IC降りてからの合流が短いので加速しっかり。' },
+      specs: { toilet: 'clean', smoking: false, vending: false },
+      weather: { type: 'sunny', temp: '12°C' },
+      scheduledTime: '10:00'
     },
     { 
       id: 'okage', name: 'おかげ横丁', coords: { lat: 34.4631, lng: 136.7228 }, type: 'sightseeing',
-      description: '食べ歩き天国。ここが本番と言っても過言ではない。',
-      image: 'https://images.unsplash.com/photo-1624867490072-5264b360f772?q=80&w=800&auto=format&fit=crop',
+      description: '食の欲望解放区。内宮のすぐ横。',
+      image: 'https://images.unsplash.com/photo-1599405658603-9e900d23ec1d?q=80&w=800',
       budget: '¥¥',
-      quests: ['赤福本店で作りたてを食べる', '松阪牛コロッケを食べる', '伊勢うどん（コシなし）を体験する'],
-      tips: '赤福は「盆（2個入）」がコスパ最強。回転早いので並んでもすぐ入れる。'
-    },
-    { 
-      id: 'yokoyama', name: '横山展望台', coords: { lat: 34.3015, lng: 136.7820 }, type: 'sightseeing',
-      description: '英虞湾を一望できる天空のテラス。映えスポット。',
-      image: 'https://images.unsplash.com/photo-1605623068996-52ce6497f537?q=80&w=800&auto=format&fit=crop',
-      quests: ['天空カフェ・テラスで写真を撮る', '英虞湾の島を数える'],
-      tips: '駐車場から少し歩く。スニーカー推奨。カフェのソフトクリームが濃厚で美味い。'
+      quests: ['食い倒れる', '土産を買う'],
+      gourmet: { item: '赤福本店「盆」', price: '¥300', tip: '回転早いので並べ。冬なら赤福ぜんざいもアリ。' },
+      specs: { toilet: 'normal', smoking: true, vending: true },
+      weather: { type: 'sunny', temp: '13°C' },
+      scheduledTime: '12:00'
     },
     { 
       id: 'vison_onsen', name: '♨️ VISON 本草湯', coords: { lat: 34.4667, lng: 136.5222 }, type: 'parking',
-      description: '薬草湯で整う。三重の最新巨大リゾート施設。',
-      image: 'https://images.unsplash.com/photo-1560965034-7a91173872fb?q=80&w=800&auto=format&fit=crop',
+      description: '三重の最新リゾートにある薬草湯。',
+      image: 'https://images.unsplash.com/photo-1634914040989-11c2780b957e?q=80&w=800',
       budget: '¥',
-      quests: ['薬草湯の香りを堪能する', '露天風呂で外気浴', '風呂上がりの牛乳'],
-      tips: 'VISON全体は広すぎるので、風呂（本草湯）に狙いを定めること。'
+      quests: ['薬草湯で深呼吸', '外気浴で整う'],
+      driverIntel: { parking: '風呂利用なら「本草湯」最寄りのP8へ。広大なので間違えると歩く。', road: 'スマートIC直結。ETCカード確認。' },
+      specs: { toilet: 'clean', smoking: true, vending: true },
+      weather: { type: 'cloudy', temp: '10°C' },
+      scheduledTime: '15:00'
     },
     { 
       id: 'matsusaka_beef', name: '🥩 一升びん本店', coords: { lat: 34.5684, lng: 136.5401 }, type: 'sightseeing',
-      description: '松阪牛の回転焼肉…ではなく本店でガッツリ。味噌ダレが絶品。',
-      image: 'https://images.unsplash.com/photo-1558030006-450675393462?q=80&w=800&auto=format&fit=crop',
+      description: '回転焼肉の聖地。味噌ダレ松阪牛。',
+      image: 'https://images.unsplash.com/photo-1558030006-450675393462?q=80&w=800',
       budget: '¥¥¥',
-      quests: ['A5ランク松阪牛を拝む', '白米をおかわりする', '会計の金額を見ない'],
-      tips: '服に匂いがつくので覚悟すること。味噌ダレは焦げやすいので頻繁にひっくり返すべし。'
-    },
-    { 
-      id: 'dormy_tsu', name: '🏨 ドーミーイン津', coords: { lat: 34.7186, lng: 136.5113 }, type: 'hotel',
-      description: '安心と信頼のドーミーイン。サウナ・水風呂完備。',
-      image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=800&auto=format&fit=crop',
-      quests: ['21:30〜 夜鳴きそばを食べる', '朝サウナで整う', '乳酸菌飲料をゲットする'],
-      tips: '津駅の目の前。コンビニは駅にある。'
+      quests: ['A5肉を拝む', '白米おかわり'],
+      gourmet: { item: '松阪牛セット', price: '¥3500~', tip: '服に匂いがつくので上着は車に置くのがプロ。' },
+      driverIntel: { parking: '店前は狭い。第二駐車場の方が安全。', road: '夜は看板が見えにくいのでCo-Pilotが注視せよ。' },
+      specs: { toilet: 'normal', smoking: true, vending: false },
+      weather: { type: 'rain', temp: '8°C' },
+      scheduledTime: '18:00'
     },
 
-    // Day 2
+    // --- DAY 2: NARA & KOBE ---
     { 
       id: 'nara_park', name: '奈良公園', coords: { lat: 34.6850, lng: 135.8430 }, type: 'sightseeing',
-      description: '鹿と大仏の国。修学旅行の思い出をアップデートせよ。',
-      image: 'https://images.unsplash.com/photo-1579405625345-d86b97666272?q=80&w=800&auto=format&fit=crop',
+      description: '鹿の帝国。人間は下僕。',
+      image: 'https://images.unsplash.com/photo-1579405625345-d86b97666272?q=80&w=800',
       budget: '¥',
-      quests: ['鹿せんべい課金（200円）', '鹿に囲まれてパニックになる', '東大寺の柱の穴くぐり（サイズ的に無理か確認）'],
-      tips: '鹿のフンに注意。鹿はお辞儀をするとお辞儀し返してくれる（こともある）。'
+      quests: ['鹿せんべい課金', '大仏殿の柱くぐり'],
+      driverIntel: { parking: '県営駐車場が安牌だが混む。少し離れたコインパ推奨。', road: '鹿の飛び出し注意（マジで出る）。' },
+      specs: { toilet: 'normal', smoking: false, vending: true },
+      weather: { type: 'sunny', temp: '15°C' },
+      scheduledTime: '10:00'
     },
     { 
       id: 'arima_onsen', name: '♨️ 有馬温泉 金の湯', coords: { lat: 34.7968, lng: 135.2478 }, type: 'parking',
-      description: '日本最古の湯。金泉（含鉄泉）はタオルが茶色くなるほど濃厚。',
-      image: 'https://images.unsplash.com/photo-1629858547492-b05421c60d9d?q=80&w=800&auto=format&fit=crop',
+      description: '日本最古の湯。金泉はタオルが茶色くなる。',
+      image: 'https://images.unsplash.com/photo-1549643276-fbc2bd5259d4?q=80&w=800',
       budget: '¥¥',
-      quests: ['金泉に10分以上浸かる', 'ありまサイダーを飲む', '温泉街でコロッケを食べる'],
-      tips: '白いタオルは持っていかないこと（絶対落ちない茶色になる）。近くの「銀の湯」は炭酸泉。'
+      quests: ['金泉に10分浸かる', 'ありまサイダー飲む'],
+      driverIntel: { parking: '温泉街は道が激狭。無理せず「有馬里駐車場」に入れて送迎バスを使え。', road: '坂道発進多し。' },
+      gourmet: { item: '竹中肉店コロッケ', price: '¥150', tip: '揚げたてを狙え。' },
+      specs: { toilet: 'clean', smoking: false, vending: true },
+      weather: { type: 'cloudy', temp: '11°C' },
+      scheduledTime: '14:00'
     },
     { 
       id: 'kobe_hotel', name: '🏨 カンデオホテルズ神戸', coords: { lat: 34.6908, lng: 135.1914 }, type: 'hotel',
-      description: '神戸の夜景を一望できるスカイスパが自慢。ラグジュアリー。',
-      image: 'https://images.unsplash.com/photo-1625244724120-1fd1d34d00f6?q=80&w=800&auto=format&fit=crop',
-      quests: ['スカイスパから夜景を見る', '三宮の夜の街へ繰り出す', 'お洒落なBARを探す'],
-      tips: '元町中華街も徒歩圏内。朝食ビュッフェが豪華なので寝坊厳禁。'
+      description: '天空のスカイスパ完備。神戸の夜景を一望。',
+      image: 'https://images.unsplash.com/photo-1625244724120-1fd1d34d00f6?q=80&w=800',
+      quests: ['スカイスパで夜景鑑賞', '朝食ビュッフェ制覇'],
+      driverIntel: { parking: '提携駐車場ありだが、高さ制限に注意。要確認。', road: '一方通行多し。ナビ絶対遵守。' },
+      specs: { toilet: 'clean', smoking: true, vending: true },
+      weather: { type: 'rain', temp: '9°C' },
+      scheduledTime: '18:00'
     },
 
-    // Day 3
-    { 
-      id: 'himeji', name: '姫路城 (通過)', coords: { lat: 34.8394, lng: 134.6939 }, type: 'sightseeing',
-      description: '白鷺城。世界遺産。高速から一瞬見える白い輝きを見逃すな。',
-      image: 'https://images.unsplash.com/photo-1598424976729-197e44927f1c?q=80&w=800&auto=format&fit=crop',
-      quests: ['高速から城を見つける', '助手席の人が写真を撮る'],
-      tips: '姫路バイパス・山陽道からの視認性は一瞬。集中せよ。'
-    },
+    // --- DAY 3: HIROSHIMA & GOAL ---
     { 
       id: 'hiroshima_okonomi', name: '🍴 広島お好み村', coords: { lat: 34.3915, lng: 132.4630 }, type: 'sightseeing',
-      description: 'お好み焼きのテーマパーク。観光客向けだが、やはり美味い。',
-      image: 'https://images.unsplash.com/photo-1582236592263-471239845942?q=80&w=800&auto=format&fit=crop',
+      description: '粉もんタワー。',
+      image: 'https://images.unsplash.com/photo-1582236592263-471239845942?q=80&w=800',
       budget: '¥¥',
-      quests: ['「広島焼き」と言わずに注文する', 'ヘラを使って鉄板から直で食べる', 'カープソースの味を知る'],
-      tips: '「あとむ」か「八昌」が有名どころ。マヨネーズは邪道とされる場合があるが、好きにかけるべし。'
+      quests: ['ヘラで直食い', 'カープソース堪能'],
+      gourmet: { item: 'そば肉玉（イカ天）', price: '¥900', tip: '「あとむ」か「八昌」が鉄板。マヨは邪道扱いされる店もあるので空気読め。' },
+      driverIntel: { parking: '繁華街ど真ん中。高い。少し離れた「ヤマダ電機」提携等が安いかも。', road: '路面電車と並走。右折時注意。' },
+      specs: { toilet: 'normal', smoking: false, vending: false },
+      weather: { type: 'sunny', temp: '14°C' },
+      scheduledTime: '12:00'
     },
-    { id: 'miyajima_sa_day', name: '⛩️ 宮島SA', coords: { lat: 34.3315, lng: 132.2982 }, type: 'parking' },
-    { id: 'mitou_sa', name: '美東SA (山口)', coords: { lat: 34.1535, lng: 131.3373 }, type: 'parking' },
     { 
       id: 'kanmon_return', name: '関門橋 (帰還)', coords: { lat: 33.9598, lng: 130.9616 }, type: 'parking',
-      description: '旅の終わり。九州に戻ってきた安心感と寂しさ。',
-      image: 'https://images.unsplash.com/photo-1571661601662-72049e25d028?q=80&w=800&auto=format&fit=crop',
-      quests: ['「帰ってきたぞー！」と叫ぶ', '残りの予算を確認して絶望する'],
-      tips: 'ここから自宅までまだ距離がある。気を抜かないこと。'
+      description: 'ただいま九州。旅の終わり。',
+      image: 'https://images.unsplash.com/photo-1550953685-5a43924e2373?q=80&w=800',
+      quests: ['残金確認', '運転手に感謝'],
+      specs: { toilet: 'normal', smoking: true, vending: true },
+      weather: { type: 'cloudy', temp: '10°C' },
+      scheduledTime: '16:00'
     },
-    { id: 'goal', name: 'Goal: 自宅', coords: { lat: 33.1916, lng: 131.7021 }, type: 'goal' },
+    { id: 'goal', name: 'Goal: 自宅', coords: { lat: 33.1916, lng: 131.7021 }, type: 'goal', scheduledTime: '19:00' },
   ],
   // 最初の目的地をセット
   nextWaypoint: { id: 'pick_haga', name: 'Pick: 芳賀 (丹川)', coords: { lat: 33.2050, lng: 131.7050 }, type: 'pickup' } as Waypoint,

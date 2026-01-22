@@ -3,9 +3,11 @@ import { useNavStore } from '../store/useNavStore';
 import { 
   Coffee, Music, MapPin, Navigation, ArrowRight, 
   Wallet, Activity, AlertTriangle, ScanLine, 
-  Thermometer, Clock, Radio, Loader2,
+  Clock, Radio, Loader2,
   Play, Pause, SkipForward, LogIn, X, ExternalLink,
-  CheckCircle2, Lightbulb // ★ Banknote を削除しました
+  CheckCircle2, CarFront, UtensilsCrossed, Cigarette, Droplets, ShoppingBag,
+  Settings, ChevronRight, User, Bell, Trash2, Info,
+  Sun, Cloud, CloudRain, Snowflake, Moon, Gavel, ShieldCheck, Gauge
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSpotify } from '../hooks/useSpotify';
@@ -13,7 +15,25 @@ import { TwitterFeed } from '../components/widgets/TwitterFeed';
 
 // --- Telemetry Header ---
 const TelemetryHeader = () => {
-  const { currentSpeed, nextWaypointEta, currentAreaText, activeNotification } = useNavStore();
+  const { currentSpeed, nextWaypointEta, currentAreaText, activeNotification, waypoints } = useNavStore();
+  
+  // 次のウェイポイント（観光地・PA・ホテル）を簡易的に取得
+  const nextPoint = waypoints.find(w => 
+    w.type === 'sightseeing' || w.type === 'parking' || w.type === 'hotel'
+  ) || waypoints[1];
+
+  const weather = nextPoint?.weather || { type: 'sunny', temp: '24°C' };
+
+  const WeatherIcon = () => {
+    switch (weather.type) {
+      case 'rain': return <CloudRain size={14} className="text-blue-400" />;
+      case 'cloudy': return <Cloud size={14} className="text-gray-400" />;
+      case 'snow': return <Snowflake size={14} className="text-white" />;
+      default: return <Sun size={14} className="text-orange-500" />;
+    }
+  };
+
+  const scheduled = nextPoint?.scheduledTime || "--:--";
   
   return (
     <div className="bg-zinc-900 border-b border-zinc-800 p-4 sticky top-0 z-30 backdrop-blur-xl bg-opacity-80">
@@ -36,15 +56,17 @@ const TelemetryHeader = () => {
         <div className="flex-1 flex items-center gap-2 border-r border-zinc-800">
           <Clock size={14} className="text-blue-500" />
           <div>
-            <div className="text-[9px] text-zinc-500 uppercase">ETA</div>
-            <div className="text-xs font-bold font-mono text-zinc-200">{nextWaypointEta}</div>
+            <div className="text-[9px] text-zinc-500 uppercase">PLAN / ETA</div>
+            <div className="text-xs font-bold font-mono text-zinc-200">
+              {scheduled} <span className="text-zinc-600">/</span> {nextWaypointEta}
+            </div>
           </div>
         </div>
         <div className="flex-1 flex items-center gap-2 border-r border-zinc-800">
-          <Thermometer size={14} className="text-orange-500" />
+          <WeatherIcon />
           <div>
-            <div className="text-[9px] text-zinc-500 uppercase">TEMP</div>
-            <div className="text-xs font-bold font-mono text-zinc-200">24°C</div>
+            <div className="text-[9px] text-zinc-500 uppercase">WEATHER</div>
+            <div className="text-xs font-bold font-mono text-zinc-200">{weather.temp}</div>
           </div>
         </div>
         <div className="flex-1 flex items-center gap-2">
@@ -118,6 +140,69 @@ const DJPanel = () => {
   );
 };
 
+// --- The JUDGE ---
+const JudgePanel = () => {
+  const [result, setResult] = useState<string | null>(null);
+  const [isSpinning, setIsSpinning] = useState(false);
+  const [mode, setMode] = useState<'PAY' | 'DRIVE' | null>(null);
+
+  const members = ['Naoto', 'Taira', 'Haga'];
+
+  const handleSpin = (selectedMode: 'PAY' | 'DRIVE') => {
+    if (isSpinning) return;
+    setMode(selectedMode);
+    setIsSpinning(true);
+    setResult(null);
+
+    let count = 0;
+    const interval = setInterval(() => {
+      setResult(members[Math.floor(Math.random() * members.length)]);
+      count++;
+      if (count > 15) {
+        clearInterval(interval);
+        setIsSpinning(false);
+        setResult(members[Math.floor(Math.random() * members.length)]);
+      }
+    }, 100);
+  };
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl mb-6 relative overflow-hidden">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-xs font-bold text-zinc-500 uppercase flex items-center gap-2">
+           <Gavel size={14} /> THE JUDGE {mode ? `- ${mode}` : ''}
+        </h3>
+        <div className={`text-xl font-black font-mono tracking-wider ${isSpinning ? 'text-zinc-500 animate-pulse' : 'text-yellow-400'}`}>
+          {result || "READY"}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <button 
+          onClick={() => handleSpin('PAY')}
+          disabled={isSpinning}
+          className="bg-zinc-800 hover:bg-red-900/30 border border-zinc-700 hover:border-red-500 text-zinc-300 hover:text-red-400 p-3 rounded-lg font-bold text-xs transition-all active:scale-95 flex flex-col items-center gap-1 group"
+        >
+          <Wallet size={18} className="group-hover:animate-bounce" />
+          WHO PAYS?
+        </button>
+        <button 
+          onClick={() => handleSpin('DRIVE')}
+          disabled={isSpinning}
+          className="bg-zinc-800 hover:bg-blue-900/30 border border-zinc-700 hover:border-blue-500 text-zinc-300 hover:text-blue-400 p-3 rounded-lg font-bold text-xs transition-all active:scale-95 flex flex-col items-center gap-1 group"
+        >
+          <CarFront size={18} className="group-hover:animate-bounce" />
+          NEXT DRIVER?
+        </button>
+      </div>
+
+      {!isSpinning && result && (
+        <div className="absolute inset-0 border-2 border-yellow-500/50 rounded-xl animate-pulse pointer-events-none" />
+      )}
+    </div>
+  );
+};
+
 // --- Wallet Tab ---
 const WalletTab = () => {
   const { expenses, addExpense } = useNavStore();
@@ -167,7 +252,6 @@ const WalletTab = () => {
     expenses.forEach(e => { if (paidBy[e.payer] !== undefined) paidBy[e.payer] += e.amount; });
     const balances = members.map(name => ({ name, balance: paidBy[name] - perPerson }));
     
-    // バグ修正済み
     const debtors = balances.filter(b => b.balance < 0).sort((a, b) => a.balance - b.balance);
     const creditors = balances.filter(b => b.balance > 0).sort((a, b) => b.balance - a.balance);
     
@@ -267,18 +351,18 @@ const WalletTab = () => {
   );
 };
 
-// --- Guide Tab (Quest Edition) ---
+// --- Guide Tab ---
 const GuideTab = () => {
   const { waypoints } = useNavStore();
   const [selectedSpot, setSelectedSpot] = useState<any>(null);
 
   const guideSpots = waypoints.filter(w => 
-    w.description || w.quests || w.type === 'sightseeing' || w.type === 'hotel'
+    w.description || w.quests || w.type === 'sightseeing' || w.type === 'hotel' || w.driverIntel
   );
 
   return (
     <div className="pb-24 px-4 relative">
-      <h3 className="text-xs font-bold text-zinc-500 uppercase mb-4 px-1">TRAVEL GUIDEBOOK</h3>
+      <h3 className="text-xs font-bold text-zinc-500 uppercase mb-4 px-1">FIELD MANUAL</h3>
       
       <div className="grid gap-4">
         {guideSpots.map((spot) => (
@@ -288,7 +372,6 @@ const GuideTab = () => {
             onClick={() => setSelectedSpot(spot)}
             className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden text-left relative group w-full shadow-lg"
           >
-            {/* 背景画像 */}
             <div className="h-36 w-full relative overflow-hidden">
               {spot.image ? (
                 <img src={spot.image} alt={spot.name} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity duration-500" />
@@ -297,7 +380,6 @@ const GuideTab = () => {
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-zinc-900/40 to-transparent"></div>
               
-              {/* アイコンバッジ */}
               <div className="absolute top-2 right-2 bg-black/40 backdrop-blur-md p-2 rounded-lg border border-white/10 shadow-lg">
                  {spot.type === 'hotel' ? <div className="text-xs">🏨</div> : 
                   spot.type === 'sightseeing' ? <div className="text-xs">📸</div> : 
@@ -305,7 +387,6 @@ const GuideTab = () => {
                   <div className="text-xs">📍</div>}
               </div>
               
-              {/* 予算バッジ */}
               {spot.budget && (
                 <div className="absolute top-2 left-2 bg-green-900/80 backdrop-blur-md px-2 py-1 rounded text-[10px] font-bold text-green-400 border border-green-500/30">
                   {spot.budget}
@@ -317,11 +398,11 @@ const GuideTab = () => {
               <h3 className="font-bold text-xl text-white leading-tight mb-2 drop-shadow-md">{spot.name}</h3>
               <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed">{spot.description || "詳細情報なし"}</p>
               
-              {/* クエストプレビュー */}
-              {spot.quests && (
-                <div className="mt-3 flex items-center gap-2 text-[10px] text-zinc-500 bg-black/30 p-2 rounded-lg border border-white/5">
-                  <CheckCircle2 size={12} className="text-purple-500" />
-                  <span>Mission: {spot.quests[0]} {spot.quests.length > 1 && `+${spot.quests.length - 1}`}</span>
+              {spot.specs && (
+                <div className="mt-3 flex gap-2">
+                   {spot.specs.toilet === 'clean' && <span className="text-[10px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/30">TOILET:OK</span>}
+                   {spot.specs.smoking && <span className="text-[10px] bg-gray-500/20 text-gray-400 px-1.5 py-0.5 rounded border border-gray-500/30">SMOKING</span>}
+                   {spot.gourmet && <span className="text-[10px] bg-orange-500/20 text-orange-400 px-1.5 py-0.5 rounded border border-orange-500/30">EAT</span>}
                 </div>
               )}
             </div>
@@ -329,7 +410,6 @@ const GuideTab = () => {
         ))}
       </div>
 
-      {/* 詳細モーダル */}
       <AnimatePresence>
         {selectedSpot && (
           <>
@@ -355,11 +435,19 @@ const GuideTab = () => {
                 <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-transparent to-transparent"></div>
                 
                 <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-zinc-900 to-transparent pt-12">
-                  {selectedSpot.budget && (
-                    <span className="inline-block bg-green-500/20 text-green-400 text-[10px] font-bold px-2 py-0.5 rounded mb-2 border border-green-500/30">
-                      BUDGET: {selectedSpot.budget}
-                    </span>
-                  )}
+                   {selectedSpot.specs && (
+                    <div className="flex gap-2 mb-3">
+                      <div className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold border ${selectedSpot.specs.toilet === 'clean' ? 'bg-blue-900/50 text-blue-400 border-blue-500/30' : 'bg-zinc-800 text-zinc-500 border-zinc-700'}`}>
+                        <Droplets size={10} /> {selectedSpot.specs.toilet === 'clean' ? 'CLEAN' : 'NORMAL'}
+                      </div>
+                      <div className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold border ${selectedSpot.specs.smoking ? 'bg-zinc-700 text-zinc-300 border-zinc-600' : 'bg-red-900/20 text-red-500 border-red-900/30 decoration-slice line-through'}`}>
+                        <Cigarette size={10} /> SMOKE
+                      </div>
+                      <div className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold border ${selectedSpot.specs.vending ? 'bg-green-900/20 text-green-400 border-green-500/30' : 'bg-zinc-800 text-zinc-500 border-zinc-700'}`}>
+                        <ShoppingBag size={10} /> STORE
+                      </div>
+                    </div>
+                   )}
                   <h2 className="text-3xl font-black text-white leading-none">{selectedSpot.name}</h2>
                 </div>
               </div>
@@ -385,14 +473,40 @@ const GuideTab = () => {
                   </div>
                 )}
 
-                {selectedSpot.tips && (
-                  <div className="bg-yellow-900/10 border border-yellow-500/30 rounded-xl p-4">
-                    <h4 className="text-xs font-bold text-yellow-500 uppercase mb-2 flex items-center gap-2">
-                      <Lightbulb size={14} /> Pro Tips
+                {selectedSpot.driverIntel && (
+                  <div className="bg-blue-900/10 border border-blue-500/30 rounded-xl p-4">
+                    <h4 className="text-xs font-bold text-blue-400 uppercase mb-3 flex items-center gap-2">
+                      <CarFront size={14} /> Driver's Intel
                     </h4>
-                    <p className="text-xs text-zinc-400 leading-relaxed">
-                      {selectedSpot.tips}
-                    </p>
+                    <div className="space-y-3 text-sm text-zinc-300">
+                      <div>
+                        <span className="block text-[10px] text-zinc-500 uppercase font-bold">PARKING STRATEGY</span>
+                        {selectedSpot.driverIntel.parking}
+                      </div>
+                      {selectedSpot.driverIntel.road && (
+                         <div>
+                          <span className="block text-[10px] text-zinc-500 uppercase font-bold">ROAD CONDITION</span>
+                          {selectedSpot.driverIntel.road}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                 {selectedSpot.gourmet && (
+                  <div className="bg-orange-900/10 border border-orange-500/30 rounded-xl p-4">
+                    <h4 className="text-xs font-bold text-orange-400 uppercase mb-3 flex items-center gap-2">
+                      <UtensilsCrossed size={14} /> Gourmet Sniper
+                    </h4>
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="font-bold text-white text-lg">{selectedSpot.gourmet.item}</span>
+                      <span className="font-mono text-orange-400 font-bold">{selectedSpot.gourmet.price}</span>
+                    </div>
+                    {selectedSpot.gourmet.tip && (
+                       <p className="text-xs text-zinc-400 border-l-2 border-orange-500/50 pl-2">
+                        💡 {selectedSpot.gourmet.tip}
+                       </p>
+                    )}
                   </div>
                 )}
 
@@ -419,7 +533,7 @@ const GuideTab = () => {
   );
 };
 
-// --- Traffic Tab (Pro Ver.) ---
+// --- ★ Traffic Tab (Restored) ---
 const TrafficTab = () => {
   const [region, setRegion] = useState<'kyushu' | 'chugoku' | 'kansai'>('kyushu');
   const [refreshKey, setRefreshKey] = useState(0);
@@ -485,10 +599,149 @@ const TrafficTab = () => {
   );
 };
 
-// --- メインコンポーネント ---
+// --- Settings Tab ---
+const SettingsTab = () => {
+  const { currentUser } = useNavStore();
+  const [tempUser, setTempUser] = useState(currentUser || 'Naoto');
+  const [isDarkMode, setIsDarkMode] = useState(true);
+
+  const toggleUser = () => {
+    const users = ['Naoto', 'Taira', 'Haga'];
+    const next = users[(users.indexOf(tempUser) + 1) % users.length];
+    setTempUser(next);
+  };
+
+  const handleReset = () => {
+    if (confirm('【警告】本当に旅費データを全て消去しますか？\nこの操作は取り消せません。')) {
+      alert('Memory wiped. Expenses cleared.');
+    }
+  };
+
+  const Toggle = ({ active, onToggle }: { active: boolean, onToggle: () => void }) => (
+    <button 
+      onClick={onToggle}
+      className={`w-10 h-6 rounded-full p-1 transition-colors relative ${active ? 'bg-green-500' : 'bg-zinc-600'}`}
+    >
+      <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${active ? 'translate-x-4' : 'translate-x-0'}`} />
+    </button>
+  );
+
+  const ListItem = ({ icon, color, label, value, onClick, isDestructive = false, hasToggle, toggleState, onToggle }: any) => (
+    <div 
+      onClick={!hasToggle ? onClick : undefined}
+      className={`w-full flex items-center justify-between p-4 border-b border-zinc-800 last:border-0 ${!hasToggle && 'active:bg-zinc-800'} transition-colors cursor-pointer`}
+    >
+      <div className="flex items-center gap-3">
+        <div className={`w-7 h-7 rounded-md flex items-center justify-center text-white ${color}`}>
+          {icon}
+        </div>
+        <span className={`text-sm font-medium ${isDestructive ? 'text-red-500' : 'text-white'}`}>
+          {label}
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        {hasToggle ? (
+          <Toggle active={toggleState} onToggle={onToggle} />
+        ) : (
+          <>
+            {value && <span className="text-zinc-500 text-sm">{value}</span>}
+            <ChevronRight size={16} className="text-zinc-600" />
+          </>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="pb-24 px-4">
+      <h2 className="text-2xl font-bold text-white mb-6 px-2">Settings</h2>
+
+      {/* Group 1: Vehicle Specs */}
+      <h3 className="text-zinc-500 text-xs uppercase font-normal ml-4 mb-2">Vehicle Specs</h3>
+      <div className="bg-zinc-900 rounded-xl overflow-hidden mb-6">
+        <ListItem 
+          icon={<CarFront size={16} />} 
+          color="bg-blue-600" 
+          label="Model" 
+          value="SERENA (C27)" 
+        />
+        <ListItem 
+          icon={<Gauge size={16} />} 
+          color="bg-purple-600" 
+          label="Fuel Type" 
+          value="Regular" 
+        />
+         <ListItem 
+          icon={<ShieldCheck size={16} />} 
+          color="bg-orange-500" 
+          label="Insurance" 
+          value="Full Coverage" 
+        />
+      </div>
+
+      {/* Group 2: Pilot Profile */}
+      <h3 className="text-zinc-500 text-xs uppercase font-normal ml-4 mb-2">Pilot Profile</h3>
+      <div className="bg-zinc-900 rounded-xl overflow-hidden mb-6">
+        <ListItem 
+          icon={<User size={16} />} 
+          color="bg-blue-500" 
+          label="Current Pilot" 
+          value={tempUser} 
+          onClick={toggleUser}
+        />
+        <ListItem 
+          icon={<Bell size={16} />} 
+          color="bg-red-500" 
+          label="Notifications" 
+          hasToggle={true}
+          toggleState={true}
+          onToggle={() => {}} 
+        />
+      </div>
+
+      {/* Group 3: System */}
+      <h3 className="text-zinc-500 text-xs uppercase font-normal ml-4 mb-2">System</h3>
+      <div className="bg-zinc-900 rounded-xl overflow-hidden mb-6">
+        <ListItem 
+          icon={<Moon size={16} />} 
+          color="bg-indigo-500" 
+          label="Dark Mode" 
+          hasToggle={true}
+          toggleState={isDarkMode}
+          onToggle={() => setIsDarkMode(!isDarkMode)}
+        />
+        <ListItem 
+          icon={<Info size={16} />} 
+          color="bg-gray-500" 
+          label="Version" 
+          value="2.1.0 (Grand Tour)" 
+        />
+      </div>
+
+      {/* Group 4: Danger Zone */}
+      <h3 className="text-zinc-500 text-xs uppercase font-normal ml-4 mb-2">Danger Zone</h3>
+      <div className="bg-zinc-900 rounded-xl overflow-hidden mb-8">
+        <ListItem 
+          icon={<Trash2 size={16} />} 
+          color="bg-red-900" 
+          label="Reset Expenses" 
+          isDestructive={true}
+          onClick={handleReset}
+        />
+      </div>
+      
+      <div className="text-center text-zinc-600 text-xs mb-8">
+        Serena Navi Pro System<br/>
+        Grand Tour Edition 2026
+      </div>
+    </div>
+  );
+};
+
+// --- Main Component ---
 export const CoPilotPage: React.FC = () => {
   const { sendNotification, setNextWaypoint, waypoints, currentUser } = useNavStore();
-  const [activeTab, setActiveTab] = useState<'command' | 'wallet' | 'guide' | 'traffic'>('command');
+  const [activeTab, setActiveTab] = useState<'command' | 'wallet' | 'guide' | 'traffic' | 'settings'>('command');
 
   const handleSend = (type: 'rest' | 'music' | 'info', msg: string) => {
     sendNotification({
@@ -508,9 +761,12 @@ export const CoPilotPage: React.FC = () => {
         <AnimatePresence mode="wait">
           {activeTab === 'command' && (
             <motion.div key="command" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="px-4 pb-24">
-              <div className="mb-8">
+              <div className="mb-6">
                 <DJPanel />
               </div>
+              
+              <JudgePanel />
+
               <h2 className="text-xs font-bold text-zinc-500 uppercase mb-3 px-1">NAVIGATION HACK</h2>
               <div className="space-y-3">
                 {waypoints.filter(w => w.type !== 'start').map((wp) => (
@@ -565,6 +821,12 @@ export const CoPilotPage: React.FC = () => {
               <TrafficTab />
             </motion.div>
           )}
+          
+          {activeTab === 'settings' && (
+            <motion.div key="settings" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}>
+              <SettingsTab />
+            </motion.div>
+          )}
         </AnimatePresence>
       </main>
 
@@ -599,6 +861,14 @@ export const CoPilotPage: React.FC = () => {
           >
             <Activity size={20} strokeWidth={activeTab === 'guide' ? 2.5 : 2} />
             <span className="text-[9px] font-bold tracking-wider">GUIDE</span>
+          </button>
+          
+          <button 
+            onClick={() => setActiveTab('settings')}
+            className={`flex flex-col items-center gap-1 w-full h-full justify-center transition-colors ${activeTab === 'settings' ? 'text-zinc-100' : 'text-zinc-600 hover:text-zinc-400'}`}
+          >
+            <Settings size={20} strokeWidth={activeTab === 'settings' ? 2.5 : 2} />
+            <span className="text-[9px] font-bold tracking-wider">SETTING</span>
           </button>
         </div>
       </nav>

@@ -18,6 +18,8 @@ export interface NavState {
   nextWaypoint: Waypoint | null;
 }
 
+// src/types/index.ts
+
 export interface Waypoint {
   id: string;
   name: string;
@@ -25,15 +27,37 @@ export interface Waypoint {
   type: 'start' | 'pickup' | 'parking' | 'sightseeing' | 'hotel' | 'goal';
   description?: string; 
   image?: string;
-  // ★ビルドエラー解消用に追加
   address?: string;
   time?: string;
   eta?: string;
-  quests?: string[]; // ミッションリスト (例: ["赤福を食べる", "記念撮影"])
-  tips?: string;     // 攻略メモ (例: "混雑時は裏口から")
+  quests?: string[];
+  tips?: string;
   budget?: string;
-}
+  
+  driverIntel?: {
+    parking: string;
+    road?: string;
+  };
+  
+  gourmet?: {
+    item: string;
+    price?: string;
+    tip?: string;
+  };
 
+  specs?: {
+    toilet: 'clean' | 'normal' | 'none';
+    smoking: boolean;
+    vending: boolean;
+  };
+
+  // ★今回追加: 天気とスケジュール
+  weather?: {
+    type: 'sunny' | 'cloudy' | 'rain' | 'snow';
+    temp: string; // "12°C"
+  };
+  scheduledTime?: string; // "14:00" (予定時刻)
+}
 export interface Expense {
   id: string;
   title: string;
