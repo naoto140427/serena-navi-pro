@@ -2,14 +2,16 @@ import React, { useState, useMemo, useRef } from 'react';
 import { useNavStore } from '../store/useNavStore';
 import { 
   Coffee, Music, MapPin, Navigation, ArrowRight, 
-  Wallet, Activity,
-  Thermometer, Clock, Radio, ScanLine, Loader2,
+  Wallet, Activity, AlertTriangle, ScanLine, // ScanLineも追加
+  Thermometer, Clock, Radio, Loader2,
   Play, Pause, SkipForward, LogIn, X, ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSpotify } from '../hooks/useSpotify';
+// ★ 修正箇所: これを追加！
+import { TwitterFeed } from '../components/widgets/TwitterFeed';
 
-// --- サブコンポーネント: Telemetry Header ---
+// --- Telemetry Header ---
 const TelemetryHeader = () => {
   const { currentSpeed, nextWaypointEta, currentAreaText, activeNotification } = useNavStore();
   
@@ -57,8 +59,7 @@ const TelemetryHeader = () => {
   );
 };
 
-// --- サブコンポーネント: DJ Panel ---
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// --- DJ Panel ---
 const DJPanel = () => {
   const { token, track, isPlaying, handleLogin, handleNext, handlePlayPause } = useSpotify();
 
@@ -117,7 +118,7 @@ const DJPanel = () => {
   );
 };
 
-// --- サブコンポーネント: WALLET ---
+// --- Wallet Tab ---
 const WalletTab = () => {
   const { expenses, addExpense } = useNavStore();
   const [title, setTitle] = useState('');
@@ -165,8 +166,11 @@ const WalletTab = () => {
     const paidBy: Record<string, number> = { Naoto: 0, Taira: 0, Haga: 0 };
     expenses.forEach(e => { if (paidBy[e.payer] !== undefined) paidBy[e.payer] += e.amount; });
     const balances = members.map(name => ({ name, balance: paidBy[name] - perPerson }));
+    
+    // バグ修正済み
     const debtors = balances.filter(b => b.balance < 0).sort((a, b) => a.balance - b.balance);
     const creditors = balances.filter(b => b.balance > 0).sort((a, b) => b.balance - a.balance);
+    
     const results: { from: string; to: string; amount: number }[] = [];
     let dIndex = 0, cIndex = 0;
     while (dIndex < debtors.length && cIndex < creditors.length) {
@@ -263,7 +267,7 @@ const WalletTab = () => {
   );
 };
 
-// --- サブコンポーネント: GUIDE ---
+// --- Guide Tab ---
 const GuideTab = () => {
   const { waypoints } = useNavStore();
   const [selectedSpot, setSelectedSpot] = useState<any>(null);
@@ -367,10 +371,82 @@ const GuideTab = () => {
   );
 };
 
+// --- ★ Traffic Tab (Pro Ver.) ---
+const TrafficTab = () => {
+  const [region, setRegion] = useState<'kyushu' | 'chugoku' | 'kansai'>('kyushu');
+  
+  // keyを強制的に変えてリロードさせるためのハック
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const accounts = {
+    kyushu: { id: 'iHighwayKyushu', name: '九州エリア' },
+    chugoku: { id: 'iHighwayChugoku', name: '中国エリア' },
+    kansai: { id: 'iHighwayKansai', name: '関西エリア' },
+  };
+
+  const handleRefresh = () => {
+    setRefreshKey(prev => prev + 1);
+  };
+
+  return (
+    <div className="pb-24 px-4 h-full flex flex-col">
+      <div className="bg-gradient-to-br from-red-900/30 to-zinc-900 border border-red-500/30 p-4 rounded-2xl mb-4 shrink-0 flex justify-between items-start">
+        <div>
+          <h2 className="text-lg font-bold text-red-500 flex items-center gap-2 mb-1">
+            <AlertTriangle className="animate-pulse" size={20} /> TRAFFIC INTEL
+          </h2>
+          <p className="text-xs text-zinc-400">
+            NEXCO西日本 公式ハイウェイ情報 (LIVE)
+          </p>
+        </div>
+        {/* 強制リロードボタン */}
+        <button 
+          onClick={handleRefresh}
+          className="bg-zinc-800 p-2 rounded-full hover:bg-zinc-700 active:scale-95 transition-all text-zinc-400"
+        >
+          <ScanLine size={18} />
+        </button>
+      </div>
+
+      {/* エリアタブ */}
+      <div className="flex bg-zinc-900 p-1 rounded-xl mb-4 shrink-0 border border-zinc-800">
+        {(Object.keys(accounts) as Array<keyof typeof accounts>).map((key) => (
+          <button
+            key={key}
+            onClick={() => { setRegion(key); setRefreshKey(prev => prev + 1); }}
+            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
+              region === key 
+                ? 'bg-zinc-700 text-white shadow-lg' 
+                : 'text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            {accounts[key].name}
+          </button>
+        ))}
+      </div>
+
+      {/* Twitter Feed (ここが妥協なき埋め込み) */}
+      <div className="flex-1 overflow-y-auto rounded-xl">
+        <TwitterFeed 
+          key={`${region}-${refreshKey}`} // これが変わると強制再描画される
+          id={accounts[region].id} 
+        />
+      </div>
+
+      {/* 補足情報 */}
+      <div className="mt-4 text-center">
+        <p className="text-[10px] text-zinc-600">
+          ※ 表示されない場合はブラウザの「トラッキング防止」をOFFにしてください
+        </p>
+      </div>
+    </div>
+  );
+};
+
 // --- メインコンポーネント ---
 export const CoPilotPage: React.FC = () => {
   const { sendNotification, setNextWaypoint, waypoints, currentUser } = useNavStore();
-  const [activeTab, setActiveTab] = useState<'command' | 'wallet' | 'guide'>('command');
+  const [activeTab, setActiveTab] = useState<'command' | 'wallet' | 'guide' | 'traffic'>('command');
 
   const handleSend = (type: 'rest' | 'music' | 'info', msg: string) => {
     sendNotification({
@@ -441,18 +517,33 @@ export const CoPilotPage: React.FC = () => {
               <GuideTab />
             </motion.div>
           )}
+
+          {activeTab === 'traffic' && (
+            <motion.div key="traffic" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}>
+              <TrafficTab />
+            </motion.div>
+          )}
         </AnimatePresence>
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 bg-black/80 backdrop-blur-xl border-t border-zinc-800 pb-safe z-40">
-        <div className="flex justify-around items-center h-16 max-w-md mx-auto">
+        <div className="flex justify-around items-center h-16 max-w-md mx-auto px-2">
           <button 
             onClick={() => setActiveTab('command')}
             className={`flex flex-col items-center gap-1 w-full h-full justify-center transition-colors ${activeTab === 'command' ? 'text-blue-500' : 'text-zinc-600 hover:text-zinc-400'}`}
           >
             <Navigation size={20} strokeWidth={activeTab === 'command' ? 2.5 : 2} />
-            <span className="text-[9px] font-bold tracking-wider">COMMAND</span>
+            <span className="text-[9px] font-bold tracking-wider">CMD</span>
           </button>
+          
+          <button 
+            onClick={() => setActiveTab('traffic')}
+            className={`flex flex-col items-center gap-1 w-full h-full justify-center transition-colors ${activeTab === 'traffic' ? 'text-red-500' : 'text-zinc-600 hover:text-zinc-400'}`}
+          >
+            <AlertTriangle size={20} strokeWidth={activeTab === 'traffic' ? 2.5 : 2} />
+            <span className="text-[9px] font-bold tracking-wider">TRAFFIC</span>
+          </button>
+
           <button 
             onClick={() => setActiveTab('wallet')}
             className={`flex flex-col items-center gap-1 w-full h-full justify-center transition-colors ${activeTab === 'wallet' ? 'text-green-500' : 'text-zinc-600 hover:text-zinc-400'}`}
