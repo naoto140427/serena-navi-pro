@@ -2,13 +2,13 @@ import React, { useState, useMemo, useRef } from 'react';
 import { useNavStore } from '../store/useNavStore';
 import { 
   Coffee, Music, MapPin, Navigation, ArrowRight, 
-  Wallet, Activity, AlertTriangle, ScanLine, // ScanLineも追加
+  Wallet, Activity, AlertTriangle, ScanLine, 
   Thermometer, Clock, Radio, Loader2,
-  Play, Pause, SkipForward, LogIn, X, ExternalLink
+  Play, Pause, SkipForward, LogIn, X, ExternalLink,
+  CheckCircle2, Lightbulb // ★ Banknote を削除しました
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSpotify } from '../hooks/useSpotify';
-// ★ 修正箇所: これを追加！
 import { TwitterFeed } from '../components/widgets/TwitterFeed';
 
 // --- Telemetry Header ---
@@ -267,13 +267,13 @@ const WalletTab = () => {
   );
 };
 
-// --- Guide Tab ---
+// --- Guide Tab (Quest Edition) ---
 const GuideTab = () => {
   const { waypoints } = useNavStore();
   const [selectedSpot, setSelectedSpot] = useState<any>(null);
 
   const guideSpots = waypoints.filter(w => 
-    w.description || w.type === 'sightseeing' || w.type === 'hotel' || w.id === 'vison_onsen' || w.id === 'arima_onsen'
+    w.description || w.quests || w.type === 'sightseeing' || w.type === 'hotel'
   );
 
   return (
@@ -286,81 +286,129 @@ const GuideTab = () => {
             key={spot.id}
             layoutId={`card-${spot.id}`}
             onClick={() => setSelectedSpot(spot)}
-            className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden text-left relative group w-full"
+            className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden text-left relative group w-full shadow-lg"
           >
-            <div className="h-32 w-full relative overflow-hidden">
+            {/* 背景画像 */}
+            <div className="h-36 w-full relative overflow-hidden">
               {spot.image ? (
-                <img src={spot.image} alt={spot.name} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />
+                <img src={spot.image} alt={spot.name} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity duration-500" />
               ) : (
                 <div className="w-full h-full bg-zinc-800" />
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 to-transparent"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-zinc-900/40 to-transparent"></div>
               
-              <div className="absolute top-2 right-2 bg-black/40 backdrop-blur-md p-2 rounded-lg border border-white/10">
+              {/* アイコンバッジ */}
+              <div className="absolute top-2 right-2 bg-black/40 backdrop-blur-md p-2 rounded-lg border border-white/10 shadow-lg">
                  {spot.type === 'hotel' ? <div className="text-xs">🏨</div> : 
                   spot.type === 'sightseeing' ? <div className="text-xs">📸</div> : 
-                  <div className="text-xs">♨️</div>}
+                  spot.type === 'parking' ? <div className="text-xs">🅿️</div> : 
+                  <div className="text-xs">📍</div>}
               </div>
+              
+              {/* 予算バッジ */}
+              {spot.budget && (
+                <div className="absolute top-2 left-2 bg-green-900/80 backdrop-blur-md px-2 py-1 rounded text-[10px] font-bold text-green-400 border border-green-500/30">
+                  {spot.budget}
+                </div>
+              )}
             </div>
 
-            <div className="p-4 -mt-6 relative z-10">
-              <h3 className="font-bold text-lg text-white leading-tight mb-1">{spot.name}</h3>
-              <p className="text-xs text-zinc-400 line-clamp-2">{spot.description || "詳細情報なし"}</p>
+            <div className="p-5 -mt-8 relative z-10">
+              <h3 className="font-bold text-xl text-white leading-tight mb-2 drop-shadow-md">{spot.name}</h3>
+              <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed">{spot.description || "詳細情報なし"}</p>
+              
+              {/* クエストプレビュー */}
+              {spot.quests && (
+                <div className="mt-3 flex items-center gap-2 text-[10px] text-zinc-500 bg-black/30 p-2 rounded-lg border border-white/5">
+                  <CheckCircle2 size={12} className="text-purple-500" />
+                  <span>Mission: {spot.quests[0]} {spot.quests.length > 1 && `+${spot.quests.length - 1}`}</span>
+                </div>
+              )}
             </div>
           </motion.button>
         ))}
       </div>
 
+      {/* 詳細モーダル */}
       <AnimatePresence>
         {selectedSpot && (
           <>
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setSelectedSpot(null)}
-              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50"
+              className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50"
             />
             <motion.div
               layoutId={`card-${selectedSpot.id}`}
-              className="fixed inset-x-4 top-20 bottom-24 bg-zinc-900 border border-zinc-700 rounded-3xl overflow-hidden z-50 flex flex-col shadow-2xl"
+              className="fixed inset-x-4 top-16 bottom-20 bg-zinc-900 border border-zinc-700 rounded-3xl overflow-hidden z-50 flex flex-col shadow-2xl"
             >
-              <div className="relative h-64 shrink-0">
+              <div className="relative h-56 shrink-0">
                 {selectedSpot.image && (
                   <img src={selectedSpot.image} alt={selectedSpot.name} className="w-full h-full object-cover" />
                 )}
                 <button 
                   onClick={(e) => { e.stopPropagation(); setSelectedSpot(null); }}
-                  className="absolute top-4 right-4 bg-black/50 p-2 rounded-full text-white backdrop-blur-md z-10"
+                  className="absolute top-4 right-4 bg-black/50 p-2 rounded-full text-white backdrop-blur-md z-10 hover:bg-black/70 transition-colors"
                 >
                   <X size={20} />
                 </button>
                 <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-transparent to-transparent"></div>
-                <div className="absolute bottom-4 left-4 right-4">
-                  <h2 className="text-2xl font-bold text-white leading-tight">{selectedSpot.name}</h2>
+                
+                <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-zinc-900 to-transparent pt-12">
+                  {selectedSpot.budget && (
+                    <span className="inline-block bg-green-500/20 text-green-400 text-[10px] font-bold px-2 py-0.5 rounded mb-2 border border-green-500/30">
+                      BUDGET: {selectedSpot.budget}
+                    </span>
+                  )}
+                  <h2 className="text-3xl font-black text-white leading-none">{selectedSpot.name}</h2>
                 </div>
               </div>
 
-              <div className="p-6 flex-1 overflow-y-auto">
-                <div className="prose prose-invert">
-                  <p className="text-zinc-300 leading-relaxed text-sm">
-                    {selectedSpot.description || "詳細情報はまだありません。"}
-                  </p>
+              <div className="p-6 flex-1 overflow-y-auto space-y-6">
+                <p className="text-zinc-300 text-sm leading-relaxed">
+                  {selectedSpot.description}
+                </p>
 
-                  <div className="mt-6 space-y-3">
-                    <h4 className="text-xs font-bold text-zinc-500 uppercase">ACTIONS</h4>
-                    
-                    <a 
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedSpot.name)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-between bg-zinc-800 p-4 rounded-xl active:bg-zinc-700 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <MapPin className="text-blue-500" />
-                        <span className="font-bold text-sm">Google Mapで開く</span>
-                      </div>
-                      <ExternalLink size={16} className="text-zinc-500" />
-                    </a>
+                {selectedSpot.quests && selectedSpot.quests.length > 0 && (
+                  <div className="bg-purple-900/10 border border-purple-500/30 rounded-xl p-4">
+                    <h4 className="text-xs font-bold text-purple-400 uppercase mb-3 flex items-center gap-2">
+                      <CheckCircle2 size={14} /> Mission Objectives
+                    </h4>
+                    <ul className="space-y-3">
+                      {selectedSpot.quests.map((quest: string, i: number) => (
+                        <li key={i} className="flex items-start gap-3">
+                          <div className="mt-0.5 w-4 h-4 rounded border border-purple-500/50 bg-black/20 shrink-0" />
+                          <span className="text-sm text-zinc-200">{quest}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
+                )}
+
+                {selectedSpot.tips && (
+                  <div className="bg-yellow-900/10 border border-yellow-500/30 rounded-xl p-4">
+                    <h4 className="text-xs font-bold text-yellow-500 uppercase mb-2 flex items-center gap-2">
+                      <Lightbulb size={14} /> Pro Tips
+                    </h4>
+                    <p className="text-xs text-zinc-400 leading-relaxed">
+                      {selectedSpot.tips}
+                    </p>
+                  </div>
+                )}
+
+                <div className="pt-2">
+                  <a 
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedSpot.name)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between bg-blue-600 hover:bg-blue-500 p-4 rounded-xl transition-all active:scale-95 shadow-lg shadow-blue-900/20"
+                  >
+                    <div className="flex items-center gap-3">
+                      <MapPin className="text-white" />
+                      <span className="font-bold text-white text-sm">Google Mapでナビ開始</span>
+                    </div>
+                    <ExternalLink size={16} className="text-white/70" />
+                  </a>
                 </div>
               </div>
             </motion.div>
@@ -371,11 +419,9 @@ const GuideTab = () => {
   );
 };
 
-// --- ★ Traffic Tab (Pro Ver.) ---
+// --- Traffic Tab (Pro Ver.) ---
 const TrafficTab = () => {
   const [region, setRegion] = useState<'kyushu' | 'chugoku' | 'kansai'>('kyushu');
-  
-  // keyを強制的に変えてリロードさせるためのハック
   const [refreshKey, setRefreshKey] = useState(0);
 
   const accounts = {
@@ -399,7 +445,6 @@ const TrafficTab = () => {
             NEXCO西日本 公式ハイウェイ情報 (LIVE)
           </p>
         </div>
-        {/* 強制リロードボタン */}
         <button 
           onClick={handleRefresh}
           className="bg-zinc-800 p-2 rounded-full hover:bg-zinc-700 active:scale-95 transition-all text-zinc-400"
@@ -408,7 +453,6 @@ const TrafficTab = () => {
         </button>
       </div>
 
-      {/* エリアタブ */}
       <div className="flex bg-zinc-900 p-1 rounded-xl mb-4 shrink-0 border border-zinc-800">
         {(Object.keys(accounts) as Array<keyof typeof accounts>).map((key) => (
           <button
@@ -425,15 +469,13 @@ const TrafficTab = () => {
         ))}
       </div>
 
-      {/* Twitter Feed (ここが妥協なき埋め込み) */}
       <div className="flex-1 overflow-y-auto rounded-xl">
         <TwitterFeed 
-          key={`${region}-${refreshKey}`} // これが変わると強制再描画される
+          key={`${region}-${refreshKey}`}
           id={accounts[region].id} 
         />
       </div>
 
-      {/* 補足情報 */}
       <div className="mt-4 text-center">
         <p className="text-[10px] text-zinc-600">
           ※ 表示されない場合はブラウザの「トラッキング防止」をOFFにしてください

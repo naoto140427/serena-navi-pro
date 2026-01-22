@@ -29,6 +29,9 @@ export interface Waypoint {
   address?: string;
   time?: string;
   eta?: string;
+  quests?: string[]; // ミッションリスト (例: ["赤福を食べる", "記念撮影"])
+  tips?: string;     // 攻略メモ (例: "混雑時は裏口から")
+  budget?: string;
 }
 
 export interface Expense {
