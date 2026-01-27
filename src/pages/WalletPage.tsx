@@ -1,229 +1,231 @@
 import React, { useState, useMemo } from 'react';
-import { useNavStore } from '../store/useNavStore'; // Expense を削除
-import { Plus, Trash2, Wallet, ArrowRight, DollarSign, Users } from 'lucide-react';
+import { useNavStore } from '../store/useNavStore';
+import { ArrowRight, TrendingUp, PieChart, Edit2, Trash2, X, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import type { Expense } from '../types';
 
-// 参加者リスト（固定）
-const MEMBERS = ['Naoto', 'Taira', 'Haga'];
+// Pro Card Component
+const ProCard = ({ children, className = "", onClick }: { children: React.ReactNode, className?: string, onClick?: () => void }) => (
+  <div onClick={onClick} className={`bg-[#1c1c1e]/90 backdrop-blur-xl border border-white/5 rounded-[20px] shadow-lg ${className}`}>
+    {children}
+  </div>
+);
 
-export const WalletPage: React.FC = () => {
-  const { expenses, addExpense, removeExpense } = useNavStore();
+// Edit Modal Component
+const EditModal = ({ expense, onClose }: { expense: Expense | null, onClose: () => void }) => {
+  const { updateExpense, removeExpense } = useNavStore();
+  const [title, setTitle] = useState(expense?.title || '');
+  const [amount, setAmount] = useState(expense?.amount?.toString() || '');
+  const [payer, setPayer] = useState(expense?.payer || 'Naoto');
+  const members = ['Naoto', 'Taira', 'Haga'];
 
-  // 入力フォームの状態
-  const [title, setTitle] = useState('');
-  const [amount, setAmount] = useState('');
-  const [payer, setPayer] = useState(MEMBERS[0]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  if (!expense) return null;
 
-  // --- 自動計算ロジック (Magic) ---
-  const { total, perPerson, settlements } = useMemo(() => { // balances を削除
-    // 1. 合計と一人当たり
-    const totalCalc = expenses.reduce((sum, item) => sum + item.amount, 0);
-    const perPersonCalc = totalCalc > 0 ? Math.ceil(totalCalc / MEMBERS.length) : 0;
+  const handleSave = () => {
+    updateExpense(expense.id, { title, amount: parseInt(amount), payer });
+    onClose();
+  };
 
-    // 2. 各自の支払額
-    const paidBy: Record<string, number> = { Naoto: 0, Taira: 0, Haga: 0 };
-    expenses.forEach(e => {
-      if (paidBy[e.payer] !== undefined) paidBy[e.payer] += e.amount;
-    });
-
-    // 3. 貸し借りバランス（プラス＝もらう人、マイナス＝払う人）
-    const balancesList = MEMBERS.map(name => ({
-      name,
-      paid: paidBy[name],
-      balance: paidBy[name] - perPersonCalc
-    }));
-
-    // 4. 精算プランの作成（誰 → 誰）
-    let debtors = balancesList.filter(b => b.balance < 0).sort((a, b) => a.balance - b.balance); // 払う人
-    let creditors = balancesList.filter(b => b.balance > 0).sort((a, b) => b.balance - a.balance); // もらう人
-    
-    const settlementsList: { from: string; to: string; amount: number }[] = [];
-
-    // 借金相殺アルゴリズム
-    let dIndex = 0;
-    let cIndex = 0;
-
-    while (dIndex < debtors.length && cIndex < creditors.length) {
-      const debtor = debtors[dIndex];
-      const creditor = creditors[cIndex];
-      
-      const moveAmount = Math.min(Math.abs(debtor.balance), creditor.balance);
-      
-      if (moveAmount > 0) {
-        settlementsList.push({ from: debtor.name, to: creditor.name, amount: moveAmount });
-        debtor.balance += moveAmount;
-        creditor.balance -= moveAmount;
-      }
-
-      if (Math.abs(debtor.balance) < 1) dIndex++;
-      if (creditor.balance < 1) cIndex++;
+  const handleDelete = () => {
+    if (confirm('Delete this record?')) {
+      removeExpense(expense.id);
+      onClose();
     }
-
-    return { total: totalCalc, perPerson: perPersonCalc, settlements: settlementsList };
-  }, [expenses]);
-
-  // 送信処理
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title || !amount) return;
-    
-    setIsSubmitting(true);
-    setTimeout(() => {
-      addExpense(title, parseInt(amount), payer);
-      setTitle('');
-      setAmount('');
-      setIsSubmitting(false);
-    }, 300);
   };
 
   return (
-    <div className="h-full flex flex-col p-4 pb-24 max-w-4xl mx-auto overflow-y-auto">
-      
-      {/* ヘッダー */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="p-3 bg-green-500/20 rounded-full">
-          <Wallet className="text-green-500" size={24} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="bg-[#1c1c1e] w-full max-w-sm rounded-[24px] border border-white/10 p-6 shadow-2xl"
+      >
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-bold text-white">Edit Record</h3>
+          <button onClick={onClose} className="p-2 bg-zinc-800 rounded-full text-zinc-400 hover:text-white">
+            <X size={20} />
+          </button>
         </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs font-bold text-zinc-500 uppercase ml-1">Title</label>
+            <input 
+              value={title} onChange={e => setTitle(e.target.value)}
+              className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-blue-500" 
+            />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-zinc-500 uppercase ml-1">Amount</label>
+            <input 
+              type="number" value={amount} onChange={e => setAmount(e.target.value)}
+              className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white font-mono outline-none focus:border-blue-500" 
+            />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-zinc-500 uppercase ml-1">Payer</label>
+            <div className="flex gap-2 mt-1">
+              {members.map(m => (
+                <button 
+                  key={m}
+                  onClick={() => setPayer(m)}
+                  className={`flex-1 py-2 rounded-lg text-sm font-bold transition-colors ${payer === m ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-400'}`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-8">
+          <button onClick={handleDelete} className="p-4 bg-red-900/20 text-red-500 rounded-xl hover:bg-red-900/40 transition-colors">
+            <Trash2 size={20} />
+          </button>
+          <button onClick={handleSave} className="flex-1 bg-blue-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-blue-500 transition-colors">
+            <Check size={20} /> Save Changes
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+export const WalletPage: React.FC = () => {
+  const { expenses } = useNavStore();
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  
+  // Analytics Logic
+  const { total, settlements, categoryStats } = useMemo(() => {
+    const totalCalc = expenses.reduce((sum, item) => sum + item.amount, 0);
+    
+    // Settlement Logic
+    const members = ['Naoto', 'Taira', 'Haga'];
+    const perPerson = totalCalc > 0 ? Math.ceil(totalCalc / members.length) : 0;
+    const paidBy: Record<string, number> = { Naoto: 0, Taira: 0, Haga: 0 };
+    expenses.forEach(e => { if (paidBy[e.payer] !== undefined) paidBy[e.payer] += e.amount; });
+    const balances = members.map(name => ({ name, balance: paidBy[name] - perPerson }));
+    const debtors = balances.filter(b => b.balance < 0).sort((a, b) => a.balance - b.balance);
+    const creditors = balances.filter(b => b.balance > 0).sort((a, b) => b.balance - a.balance);
+    const results: { from: string; to: string; amount: number }[] = [];
+    let dIndex = 0, cIndex = 0;
+    while (dIndex < debtors.length && cIndex < creditors.length) {
+      const move = Math.min(Math.abs(debtors[dIndex].balance), creditors[cIndex].balance);
+      if (move > 0) {
+        results.push({ from: debtors[dIndex].name, to: creditors[cIndex].name, amount: move });
+        debtors[dIndex].balance += move;
+        creditors[cIndex].balance -= move;
+      }
+      if (Math.abs(debtors[dIndex].balance) < 1) dIndex++;
+      if (creditors[cIndex].balance < 1) cIndex++;
+    }
+
+    return { total: totalCalc, settlements: results, categoryStats: paidBy };
+  }, [expenses]);
+
+  return (
+    <div className="h-full bg-black text-white p-6 overflow-y-auto pb-32">
+      <AnimatePresence>
+        {editingExpense && <EditModal expense={editingExpense} onClose={() => setEditingExpense(null)} />}
+      </AnimatePresence>
+
+      <div className="flex justify-between items-end mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-white">Trip Wallet</h1>
-          <p className="text-zinc-500 text-xs">Total Expenses: ¥{total.toLocaleString()}</p>
+          <h2 className="text-[34px] font-bold tracking-tight leading-none">Financials</h2>
+          <p className="text-zinc-500 font-medium text-sm mt-2">Admin Overview</p>
+        </div>
+        <div className="bg-zinc-900 rounded-full p-2 border border-white/5">
+          <PieChart size={20} className="text-zinc-400" />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
-        {/* 左側：入力フォーム & 精算情報 */}
-        <div className="space-y-6">
-          
-          {/* 入力フォーム */}
-          <div className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-2xl">
-            <h2 className="text-sm font-bold text-zinc-400 mb-4 flex items-center gap-2">
-              <Plus size={16} /> NEW EXPENSE
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="text-xs text-zinc-500 mb-1 block">What for?</label>
-                <input 
-                  type="text" 
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Gas, Lunch, Hotel..."
-                  className="w-full bg-zinc-800 text-white p-3 rounded-xl border border-zinc-700 focus:border-green-500 outline-none"
+      {/* Hero Stats */}
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <ProCard className="col-span-2 p-6 bg-gradient-to-br from-green-900/30 to-[#1c1c1e] border-green-500/20 relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-24 bg-green-500/10 blur-[60px] rounded-full pointer-events-none" />
+          <div className="flex items-center gap-2 text-[#30D158] font-bold text-xs uppercase tracking-widest mb-1">
+            <TrendingUp size={14} /> Total Expenditure
+          </div>
+          <div className="text-5xl font-thin font-mono tracking-tighter">¥{total.toLocaleString()}</div>
+          <div className="mt-4 flex gap-2">
+             <span className="text-xs text-zinc-400">Since Departure</span>
+          </div>
+        </ProCard>
+
+        {/* Individual Stats */}
+        {Object.entries(categoryStats).map(([name, val]) => (
+          <ProCard key={name} className="p-4 flex flex-col justify-between">
+            <div className="flex justify-between items-start">
+              <span className="text-xs font-bold text-zinc-500 uppercase">{name}</span>
+              {name === 'Naoto' && <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" />}
+            </div>
+            <div>
+              <div className="text-xl font-bold font-mono">¥{val.toLocaleString()}</div>
+              <div className="h-1 w-full bg-zinc-800 rounded-full mt-2 overflow-hidden">
+                <motion.div 
+                  initial={{ width: 0 }} 
+                  animate={{ width: `${(val / (total || 1)) * 100}%` }}
+                  className={`h-full ${name === 'Naoto' ? 'bg-blue-500' : 'bg-zinc-600'}`}
                 />
               </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs text-zinc-500 mb-1 block">Amount</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-3 text-zinc-400">¥</span>
-                    <input 
-                      type="number" 
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      placeholder="0"
-                      className="w-full bg-zinc-800 text-white p-3 pl-8 rounded-xl border border-zinc-700 focus:border-green-500 outline-none font-mono"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs text-zinc-500 mb-1 block">Paid By</label>
-                  <select 
-                    value={payer}
-                    onChange={(e) => setPayer(e.target.value)}
-                    className="w-full bg-zinc-800 text-white p-3 rounded-xl border border-zinc-700 outline-none appearance-none"
-                  >
-                    {MEMBERS.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                </div>
+            </div>
+          </ProCard>
+        ))}
+      </div>
+
+      {/* --- Transaction History List --- */}
+      <h3 className="text-xs font-bold text-zinc-500 uppercase px-2 mb-3 mt-8 flex justify-between items-center">
+        Transaction History
+        <span className="text-[10px] bg-zinc-800 px-2 py-1 rounded text-zinc-400">{expenses.length} records</span>
+      </h3>
+      <div className="space-y-2 mb-8">
+        {expenses.slice().reverse().map((ex) => (
+          <ProCard 
+            key={ex.id} 
+            onClick={() => setEditingExpense(ex)}
+            className="p-4 flex justify-between items-center bg-[#1c1c1e] hover:bg-[#2c2c2e] cursor-pointer transition-colors group"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-sm font-bold text-zinc-400 border border-white/5">
+                {ex.payer.charAt(0)}
               </div>
-
-              <button 
-                disabled={isSubmitting || !title || !amount}
-                className="w-full bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2"
-              >
-                {isSubmitting ? 'Saving...' : 'Add Expense'}
-              </button>
-            </form>
-          </div>
-
-          {/* 精算サマリー */}
-          {expenses.length > 0 && (
-            <div className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-2xl">
-              <h2 className="text-sm font-bold text-zinc-400 mb-4 flex items-center gap-2">
-                <Users size={16} /> SETTLEMENT
-              </h2>
-              
-              <div className="flex justify-between items-center mb-6 pb-4 border-b border-zinc-800">
-                <span className="text-zinc-500 text-sm">Per Person</span>
-                <span className="text-xl font-mono font-bold text-white">¥{perPerson.toLocaleString()}</span>
-              </div>
-
-              <div className="space-y-3">
-                {settlements.length === 0 ? (
-                  <div className="text-center text-zinc-500 text-sm py-2">
-                    Settled! No payments needed.
-                  </div>
-                ) : (
-                  settlements.map((s, i) => (
-                    <div key={i} className="flex items-center justify-between bg-zinc-800/50 p-3 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-red-400">{s.from}</span>
-                        <ArrowRight size={14} className="text-zinc-600" />
-                        <span className="font-bold text-green-400">{s.to}</span>
-                      </div>
-                      <span className="font-mono font-bold text-white">¥{s.amount.toLocaleString()}</span>
-                    </div>
-                  ))
-                )}
+              <div>
+                <div className="font-bold text-white text-sm">{ex.title}</div>
+                <div className="text-[10px] text-zinc-500 flex items-center gap-1">
+                  {new Date(ex.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} • {ex.payer}
+                </div>
               </div>
             </div>
-          )}
-        </div>
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-white text-lg tracking-tight">¥{ex.amount.toLocaleString()}</span>
+              <Edit2 size={14} className="text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+          </ProCard>
+        ))}
+      </div>
 
-        {/* 右側：履歴リスト */}
-        <div className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-2xl h-fit max-h-[600px] overflow-y-auto">
-          <h2 className="text-sm font-bold text-zinc-400 mb-4 flex items-center gap-2 sticky top-0 bg-zinc-900/95 py-2 z-10">
-            <DollarSign size={16} /> HISTORY
-          </h2>
-          
-          <div className="space-y-3">
-            <AnimatePresence>
-              {expenses.length === 0 ? (
-                <div className="text-center text-zinc-600 py-10">No expenses yet.</div>
-              ) : (
-                expenses.map((item) => (
-                  <motion.div
-                    key={item.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    className="flex items-center justify-between p-3 bg-zinc-800/30 rounded-xl hover:bg-zinc-800/50 transition-colors group"
-                  >
-                    <div>
-                      <div className="font-bold text-white text-sm md:text-base">{item.title}</div>
-                      <div className="text-xs text-zinc-500 flex items-center gap-2">
-                        <span className="bg-zinc-700 text-zinc-300 px-1.5 rounded text-[10px]">{item.payer}</span>
-                        <span>{new Date(item.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <span className="font-mono font-bold text-white">¥{item.amount.toLocaleString()}</span>
-                      <button 
-                        onClick={() => removeExpense(item.id)}
-                        className="text-zinc-600 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 p-2"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </motion.div>
-                ))
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
-
+      {/* Settlements List */}
+      <h3 className="text-xs font-bold text-zinc-500 uppercase px-2 mb-3 mt-8">Pending Settlements</h3>
+      <div className="space-y-3">
+        {settlements.length > 0 ? (
+          settlements.map((s, i) => (
+            <ProCard key={i} className="p-4 flex justify-between items-center bg-[#1c1c1e]">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-red-900/30 flex items-center justify-center text-xs font-bold text-red-400 border border-red-500/20">
+                  {s.from.charAt(0)}
+                </div>
+                <ArrowRight size={14} className="text-zinc-600"/>
+                <div className="w-8 h-8 rounded-full bg-green-900/30 flex items-center justify-center text-xs font-bold text-green-400 border border-green-500/20">
+                  {s.to.charAt(0)}
+                </div>
+              </div>
+              <span className="font-mono text-white text-lg tracking-tight">¥{s.amount.toLocaleString()}</span>
+            </ProCard>
+          ))
+        ) : (
+          <div className="text-center p-8 text-zinc-600 text-sm">All accounts are settled.</div>
+        )}
       </div>
     </div>
   );

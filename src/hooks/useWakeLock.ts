@@ -1,35 +1,29 @@
-import { useEffect, useRef } from 'react'; // ← type を削除しました
+import { useEffect, useCallback } from 'react';
 
 export const useWakeLock = () => {
-  const wakeLock = useRef<WakeLockSentinel | null>(null);
+  const requestWakeLock = useCallback(async () => {
+    try {
+      if ('wakeLock' in navigator) {
+        // @ts-ignore
+        await navigator.wakeLock.request('screen');
+      }
+    } catch (err) {
+      console.warn(err);
+    }
+  }, []);
 
   useEffect(() => {
-    const requestWakeLock = async () => {
-      try {
-        if ('wakeLock' in navigator) {
-          wakeLock.current = await navigator.wakeLock.request('screen');
-          console.log('Wake Lock is active');
-        }
-      } catch (err: any) { // ← : any を追加しました
-        console.error(`${err.name}, ${err.message}`);
-      }
-    };
-
     requestWakeLock();
-
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         requestWakeLock();
       }
     };
-
     document.addEventListener('visibilitychange', handleVisibilityChange);
-
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      if (wakeLock.current) {
-        wakeLock.current.release();
-      }
     };
-  }, []);
+  }, [requestWakeLock]);
+
+  return { requestWakeLock };
 };

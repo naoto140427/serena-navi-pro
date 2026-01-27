@@ -1,10 +1,9 @@
 import { create } from 'zustand';
 import { db } from '../lib/firebase';
-import { ref, onValue, set as firebaseSet, remove, push } from 'firebase/database';
+import { ref, onValue, set as firebaseSet, remove, push, update } from 'firebase/database';
 import type { NavState, Waypoint, Expense, AppNotification } from '../types';
 import { initialGeoFences, type GeoFence } from '../data/geoFences';
 
-// Storeのアクション定義
 interface NavActions {
   setMode: (mode: 'driver' | 'passenger') => void;
   setCurrentUser: (name: string) => void;
@@ -14,14 +13,13 @@ interface NavActions {
   clearNotification: () => void;
   addExpense: (title: string, amount: number, payer: string) => void;
   removeExpense: (id: string) => void;
+  updateExpense: (id: string, data: Partial<Expense>) => void; // ★追加: 編集用
   updateLocation: (lat: number, lng: number, speed: number | null) => void;
   resetGeoFences: () => void;
-  // ★追加
   resetAllData: () => void;
   refreshRouteData: () => void;
 }
 
-// 距離計算ヘルパー
 const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number) => {
   const R = 6371; 
   const dLat = (lat2 - lat1) * (Math.PI / 180);
@@ -33,7 +31,6 @@ const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: numbe
   return R * c;
 };
 
-// エリア名推定
 const guessLocationName = (_lat: number, lng: number) => {
   if (lng < 131.0) return "福岡県 / 関門エリア";
   if (lng < 131.8) return "大分県内"; 
@@ -46,13 +43,11 @@ const guessLocationName = (_lat: number, lng: number) => {
   return "Highway Cruising";
 };
 
-// State拡張
 interface ExtendedNavState extends NavState {
   geoFences: GeoFence[];
 }
 
 export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => ({
-  // --- Initial State ---
   mode: 'driver',
   currentUser: null,
   currentLocation: { lat: 33.1916, lng: 131.7021 },
@@ -63,15 +58,10 @@ export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => (
   nextWaypointEta: "--:--",
   activeNotification: null,
   expenses: [],
-  trafficInfo: {
-    riskLevel: 0,
-    jamDistance: 0,
-    nextReg: '順調'
-  },
+  trafficInfo: { riskLevel: 0, jamDistance: 0, nextReg: '順調' },
   geoFences: initialGeoFences,
 
   waypoints: [
-    // --- DAY 0 ---
     { 
       id: 'start', name: 'Start: 宮河内', coords: { lat: 33.1916, lng: 131.7021 }, type: 'start',
       description: '伝説の始まり。全ての準備は整った。',
@@ -83,8 +73,6 @@ export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => (
     },
     { id: 'pick_haga', name: 'Pick: 芳賀', coords: { lat: 33.2050, lng: 131.7050 }, type: 'pickup', scheduledTime: '20:15' },
     { id: 'pick_taira', name: 'Pick: 平良', coords: { lat: 33.2436, lng: 131.6418 }, type: 'pickup', scheduledTime: '20:45' },
-    
-    // --- NIGHT CRUISE ---
     { 
       id: 'kanmon', name: '関門橋 (めかりPA)', coords: { lat: 33.9598, lng: 130.9616 }, type: 'parking',
       description: '九州脱出ポイント。夜景を見ながら最後の作戦会議。',
@@ -95,8 +83,6 @@ export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => (
       weather: { type: 'sunny', temp: '6°C' },
       scheduledTime: '22:30'
     },
-
-    // --- DAY 1: MIE ---
     { 
       id: 'ise_jingu', name: '伊勢神宮 内宮', coords: { lat: 34.4560, lng: 136.7250 }, type: 'sightseeing',
       description: '日本最強のパワースポット。2000年の歴史。',
@@ -150,8 +136,6 @@ export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => (
       specs: { toilet: 'clean', smoking: true, vending: true },
       weather: { type: 'cloudy', temp: '5°C' }
     },
-
-    // --- DAY 2: SHIGA (METASEQUOIA) & NARA & KOBE ---
     { 
       id: 'metasequoia', name: '🌲 メタセコイア並木', coords: { lat: 35.4568, lng: 136.0355 }, type: 'sightseeing',
       description: '冬のソナタ的絶景ロード。雪道注意。',
@@ -171,7 +155,7 @@ export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => (
       driverIntel: { parking: '県営駐車場が安牌だが混む。少し離れたコインパ推奨。', road: '鹿の飛び出し注意（マジで出る）。' },
       specs: { toilet: 'normal', smoking: false, vending: true },
       weather: { type: 'sunny', temp: '15°C' },
-      scheduledTime: '13:30' // 時間調整
+      scheduledTime: '13:30'
     },
     { 
       id: 'arima_onsen', name: '♨️ 有馬温泉 金の湯', coords: { lat: 34.7968, lng: 135.2478 }, type: 'parking',
@@ -183,7 +167,7 @@ export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => (
       gourmet: { item: '竹中肉店コロッケ', price: '¥150', tip: '揚げたてを狙え。' },
       specs: { toilet: 'clean', smoking: false, vending: true },
       weather: { type: 'cloudy', temp: '11°C' },
-      scheduledTime: '16:30' // 時間調整
+      scheduledTime: '16:30'
     },
     { 
       id: 'kobe_hotel', name: '🏨 カンデオホテルズ神戸', coords: { lat: 34.6908, lng: 135.1914 }, type: 'hotel',
@@ -195,8 +179,6 @@ export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => (
       weather: { type: 'rain', temp: '9°C' },
       scheduledTime: '19:00'
     },
-
-    // --- DAY 3: HIROSHIMA & GOAL ---
     { 
       id: 'hiroshima_okonomi', name: '🍴 広島お好み村', coords: { lat: 34.3915, lng: 132.4630 }, type: 'sightseeing',
       description: '粉もんタワー。',
@@ -220,10 +202,8 @@ export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => (
     },
     { id: 'goal', name: 'Goal: 自宅', coords: { lat: 33.1916, lng: 131.7021 }, type: 'goal', scheduledTime: '19:00' },
   ],
-  // 最初の目的地をセット
   nextWaypoint: { id: 'pick_haga', name: 'Pick: 芳賀 (丹川)', coords: { lat: 33.2050, lng: 131.7050 }, type: 'pickup' } as Waypoint,
 
-  // --- Actions ---
   setMode: (mode) => set({ mode }),
   setCurrentUser: (name) => set({ currentUser: name }),
 
@@ -288,22 +268,24 @@ export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => (
     remove(expenseRef);
   },
 
+  // ★実装: 編集機能
+  updateExpense: (id, data) => {
+    const expenseRef = ref(db, `expenses/${id}`);
+    update(expenseRef, { ...data });
+  },
+
   resetGeoFences: () => {
     set({ geoFences: initialGeoFences });
   },
 
-  // ★追加: データリセット（Expensesだけ空にする簡易実装）
   resetAllData: () => {
     const expensesRef = ref(db, 'expenses');
     remove(expensesRef);
-    // 必要なら他のデータも消す
     console.log("Expenses reset.");
   },
 
-  // ★追加: ルートデータ更新（実際は固定データなのでログ出力のみ、またはトースト表示）
   refreshRouteData: () => {
-    console.log("Route data refreshed from static config.");
-    // Firebase側にも再セットするならここで処理
+    console.log("Route data refreshed.");
   },
 
   updateLocation: (lat, lng, speed) => {
@@ -330,7 +312,6 @@ export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => (
     }
     const kmh = speed ? Math.round(speed * 3.6) : 0;
 
-    // ジオフェンスチェック
     const hitFence = state.geoFences.find(fence => {
       if (fence.triggered) return false;
       const dist = calculateDistance(lat, lng, fence.lat, fence.lng);
@@ -338,8 +319,6 @@ export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => (
     });
 
     if (hitFence) {
-      console.log("GeoFence Hit:", hitFence.name);
-      
       const notifRef = ref(db, 'state/activeNotification');
       firebaseSet(notifRef, {
         id: Date.now().toString(),

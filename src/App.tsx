@@ -1,87 +1,46 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-
-// ★復活: レイアウトと各ページコンポーネントを有効化
-import { Layout } from './components/layout/Layout';
-import { CockpitPage } from './pages/CockpitPage';
-import { TimelinePage } from './pages/TimelinePage';
-import { WalletPage } from './pages/WalletPage';
-import { SettingsPage } from './pages/SettingsPage';
-import { CoPilotPage } from './pages/CoPilotPage';
-
-// ウィジェット類
-import { GPSWatcher } from './components/widgets/GPSWatcher';
-//import { DynamicIsland } from './components/widgets/DynamicIsland'
-
-// レイアウト・演出類
-import { BootSequence } from './components/layout/BootSequence';
-import { UserSelect } from './components/layout/UserSelect';
-import { AnimatePresence } from 'framer-motion';
 import { useNavStore } from './store/useNavStore';
+// Layoutはもう使わず、直接ページを呼び出します
+import { UserSelect } from './components/layout/UserSelect';
+import { BootSequence } from './components/layout/BootSequence';
+import { CockpitPage } from './pages/CockpitPage';
+import { CoPilotPage } from './pages/CoPilotPage';
 import { useWakeLock } from './hooks/useWakeLock';
 
-function App() {
-  const [appState, setAppState] = useState<'booting' | 'selecting' | 'ready'>('booting');
-  const { mode, initializeSync } = useNavStore();
-  
-  // スリープ防止
-  useWakeLock();
+export const App = () => {
+  const [appState, setAppState] = useState<'boot' | 'select' | 'ready'>('boot');
+  // modeを取得して、ドライバーか同乗者かを判定します
+  const { initializeSync, mode } = useNavStore();
+  const { requestWakeLock } = useWakeLock();
 
-  // Firebase接続を開始
   useEffect(() => {
     initializeSync();
-  }, [initializeSync]);
+    
+    const timer = setTimeout(() => {
+      setAppState('select');
+    }, 2500);
 
-  return (
-    <div className="bg-black min-h-screen text-white overflow-hidden select-none font-sans">
-      
-      {/* 1. バックグラウンド機能 (GPS / Dynamic Island) */}
-      <GPSWatcher />
-      {/* 通知は Layout 内にも DynamicIsland がある場合がありますが、
-          全画面（Co-Pilot含む）で出すためにここに置くか、Layoutに任せるか。
-          Naotoさんの元のLayoutコードに <DynamicIsland /> が含まれていたので、
-          重複を避けるためにここは一旦コメントアウトするか、Layout側を優先します。
-          今回は「Layout外」のCo-Pilotでも通知を出したいので、ここに置くのが安全ですが、
-          位置被りを防ぐため、Layout側と重複しないよう注意が必要です。
-          ※元のLayoutコードを見るとDynamicIslandが含まれているので、ここではDriver時はLayoutに任せます。
-      */}
-      {/* <DynamicIsland /> */} 
+    const handleInteraction = () => {
+      requestWakeLock();
+    };
+    window.addEventListener('click', handleInteraction);
+    window.addEventListener('touchstart', handleInteraction);
 
-      {/* 2. 起動シーケンス (Nissan Version) */}
-      {appState === 'booting' && (
-        <BootSequence onComplete={() => setAppState('selecting')} />
-      )}
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('click', handleInteraction);
+      window.removeEventListener('touchstart', handleInteraction);
+    };
+  }, [initializeSync, requestWakeLock]);
 
-      {/* 3. ユーザー選択 (Original Design) */}
-      <AnimatePresence mode='wait'>
-        {appState === 'selecting' && (
-          <UserSelect onSelect={() => setAppState('ready')} />
-        )}
-      </AnimatePresence>
+  if (appState === 'boot') {
+    return <BootSequence onComplete={() => setAppState('select')} />;
+  }
 
-      {/* 4. メインアプリケーション */}
-      {appState === 'ready' && (
-        <BrowserRouter>
-          {mode === 'driver' ? (
-            <Routes>
-              {/* ★復活: Layoutコンポーネントでラップしてタブバーを表示 */}
-              <Route path="/" element={<Layout />}>
-                <Route index element={<CockpitPage />} />
-                <Route path="timeline" element={<TimelinePage />} />
-                <Route path="wallet" element={<WalletPage />} />
-                <Route path="settings" element={<SettingsPage />} />
-              </Route>
-            </Routes>
-          ) : (
-            <Routes>
-              {/* Co-Pilotモードは単独ページ */}
-              <Route path="*" element={<CoPilotPage />} />
-            </Routes>
-          )}
-        </BrowserRouter>
-      )}
-    </div>
-  );
-}
+  if (appState === 'select') {
+    return <UserSelect onSelect={() => setAppState('ready')} />;
+  }
 
-export default App;
+  // ★ここを変更: Layoutを使わず、モードに応じて新しい画面を表示
+  return mode === 'driver' ? <CockpitPage /> : <CoPilotPage />;
+};
