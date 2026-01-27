@@ -184,9 +184,8 @@ const JudgePanel = () => {
   );
 };
 
-// --- Guide Tab (Apple Maps Level) ---
+// --- Guide Tab (Apple Maps Level - Layout Fixed) ---
 const GuideTab = () => {
-  // ★修正: nextWaypoint から安全にIDを取得
   const { waypoints, nextWaypoint } = useNavStore();
   const nextWaypointId = nextWaypoint?.id;
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -212,17 +211,23 @@ const GuideTab = () => {
   // 現在の進捗indexを取得
   const activeIndex = waypoints.findIndex(w => w.id === nextWaypointId);
 
+  // Layout Constants
+  const TIMELINE_LEFT = 58; // 線の左位置
+  const DOT_LEFT = 53;      // ドットの左位置 (LINE - 5)
+  const CONTENT_PAD = 84;   // コンテンツの左パディング
+
   return (
     <div className="pt-32 pb-32 px-0 min-h-screen bg-black">
       <div className="relative">
         
         {/* Timeline Line (Dynamic) */}
-        <div className="absolute left-[39px] top-0 bottom-0 w-[2px] bg-zinc-800 rounded-full" />
+        <div className={`absolute top-0 bottom-0 w-[2px] bg-zinc-800 rounded-full`} style={{ left: TIMELINE_LEFT }} />
         {/* Progress Line (Blue) */}
         <motion.div 
           initial={{ height: 0 }}
           animate={{ height: `${(Math.max(0, activeIndex) / waypoints.length) * 100}%` }}
-          className="absolute left-[39px] top-0 w-[2px] bg-[#0A84FF] rounded-full z-0 shadow-[0_0_10px_#0A84FF]"
+          className={`absolute top-0 w-[2px] bg-[#0A84FF] rounded-full z-0 shadow-[0_0_10px_#0A84FF]`}
+          style={{ left: TIMELINE_LEFT }}
         />
 
         {waypoints.map((spot, index) => {
@@ -246,10 +251,11 @@ const GuideTab = () => {
 
               <motion.div 
                 layout 
-                className="relative pl-20 pr-4 py-3 group"
+                className={`relative pr-4 py-3 group`}
+                style={{ paddingLeft: CONTENT_PAD }}
               >
-                {/* Time Stamp (Left) */}
-                <div className="absolute left-4 top-[18px] w-10 text-right">
+                {/* Time Stamp (Left - No overlap now) */}
+                <div className="absolute left-2 top-[18px] w-10 text-right">
                   <span className={`text-[11px] font-mono font-bold tracking-tight ${isNext ? 'text-[#0A84FF]' : isPast ? 'text-zinc-600' : 'text-zinc-400'}`}>
                     {spot.scheduledTime}
                   </span>
@@ -258,7 +264,8 @@ const GuideTab = () => {
                 {/* Timeline Node (The Dot) */}
                 <div 
                   onClick={() => toggleExpand(spot.id)}
-                  className="absolute left-[34px] top-[20px] z-10 cursor-pointer"
+                  className={`absolute top-[20px] z-10 cursor-pointer`}
+                  style={{ left: DOT_LEFT }}
                 >
                   <motion.div 
                     animate={{ 
