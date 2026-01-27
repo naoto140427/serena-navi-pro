@@ -8,7 +8,7 @@ import {
   Settings, ChevronRight, User, Trash2,
   Sun, CloudRain, 
   Gavel, Coffee, Wind,
-  ChevronUp, CarFront, Cigarette, Droplets, Clock, Radio, Cloud, Snowflake
+  ChevronUp, CarFront, Cigarette, Droplets
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSpotify } from '../hooks/useSpotify';
@@ -228,9 +228,9 @@ const GuideScreen = () => {
   const activeIndex = waypoints.findIndex(w => w.id === nextWaypointId);
 
   // レイアウト設定: 左側のスペースを十分に取る
-  const TIMELINE_LEFT = 70; // 線の左位置を70pxに設定 (前回58px)
+  const TIMELINE_LEFT = 70; // 線の左位置
   const DOT_LEFT = 65;      // ドットの左位置 (LINE - 5px)
-  const CONTENT_PAD = 96;   // コンテンツの左パディング (前回84px)
+  const CONTENT_PAD = 96;   // コンテンツの左パディング
 
   return (
     <div className="pt-28 pb-32 bg-black min-h-screen">
@@ -349,6 +349,30 @@ const GuideScreen = () => {
                           </div>
                         )}
 
+                        {/* Specs (Toilet, Smoking, Vending) */}
+                        {spot.specs && (
+                          <div className="flex flex-wrap gap-2 mb-3 px-3">
+                            {spot.specs.toilet && (
+                              <div className={`flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded border ${spot.specs.toilet === 'clean' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-zinc-800 text-zinc-400 border-zinc-700'}`}>
+                                <Droplets size={12} />
+                                {spot.specs.toilet === 'clean' ? 'Clean WC' : 'Restroom'}
+                              </div>
+                            )}
+                            {spot.specs.smoking && (
+                              <div className="flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
+                                <Cigarette size={12} />
+                                Smoking Area
+                              </div>
+                            )}
+                            {spot.specs.vending && (
+                              <div className="flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded bg-green-900/20 text-green-400 border border-green-500/20">
+                                <ShoppingBag size={12} />
+                                Vending
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         <div className="p-3 pt-0 space-y-3">
                           {/* Missions */}
                           {spot.quests && (
@@ -373,10 +397,12 @@ const GuideScreen = () => {
                                 <p className="text-[10px] text-blue-100/80 leading-tight">{spot.driverIntel.parking}</p>
                               </div>
                             )}
-                            {spot.specs && (
-                              <div className="bg-zinc-800/30 rounded-lg p-2 border border-white/5 flex flex-col justify-center gap-1">
-                                {spot.specs.toilet === 'clean' && <span className="text-[9px] text-blue-300 flex items-center gap-1"><Droplets size={10}/> Clean WC</span>}
-                                {spot.specs.smoking && <span className="text-[9px] text-zinc-400 flex items-center gap-1"><Cigarette size={10}/> Smoking</span>}
+                            {/* Gourmet */}
+                            {spot.gourmet && (
+                              <div className="bg-orange-500/10 rounded-lg p-2 border border-orange-500/20">
+                                <div className="text-[9px] font-bold text-orange-400 uppercase mb-0.5 flex items-center gap-1"><UtensilsCrossed size={10}/> Eat</div>
+                                <div className="text-[10px] font-bold text-orange-100 leading-tight">{spot.gourmet.item}</div>
+                                <div className="text-[9px] text-orange-200/60 leading-tight">{spot.gourmet.price}</div>
                               </div>
                             )}
                           </div>
