@@ -16,6 +16,9 @@ interface NavActions {
   removeExpense: (id: string) => void;
   updateLocation: (lat: number, lng: number, speed: number | null) => void;
   resetGeoFences: () => void;
+  // ★追加
+  resetAllData: () => void;
+  refreshRouteData: () => void;
 }
 
 // 距離計算ヘルパー
@@ -287,6 +290,20 @@ export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => (
 
   resetGeoFences: () => {
     set({ geoFences: initialGeoFences });
+  },
+
+  // ★追加: データリセット（Expensesだけ空にする簡易実装）
+  resetAllData: () => {
+    const expensesRef = ref(db, 'expenses');
+    remove(expensesRef);
+    // 必要なら他のデータも消す
+    console.log("Expenses reset.");
+  },
+
+  // ★追加: ルートデータ更新（実際は固定データなのでログ出力のみ、またはトースト表示）
+  refreshRouteData: () => {
+    console.log("Route data refreshed from static config.");
+    // Firebase側にも再セットするならここで処理
   },
 
   updateLocation: (lat, lng, speed) => {
