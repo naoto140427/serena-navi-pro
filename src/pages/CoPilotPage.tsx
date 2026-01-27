@@ -22,7 +22,7 @@ const IOSCard = ({ children, className = "", onClick }: { children: React.ReactN
     whileTap={{ scale: 0.98 }}
     transition={{ type: "spring", stiffness: 400, damping: 30 }}
     onClick={onClick}
-    className={`bg-[#1c1c1e]/80 backdrop-blur-xl border border-white/5 rounded-[24px] shadow-lg overflow-hidden ${className}`}
+    className={`bg-[#1c1c1e]/90 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-lg overflow-hidden ${className}`}
   >
     {children}
   </motion.div>
@@ -228,9 +228,9 @@ const GuideScreen = () => {
   const activeIndex = waypoints.findIndex(w => w.id === nextWaypointId);
 
   // レイアウト設定: 左側のスペースを十分に取る
-  const TIMELINE_LEFT = 70; // 線の左位置
-  const DOT_LEFT = 65;      // ドットの左位置 (LINE - 5px)
-  const CONTENT_PAD = 96;   // コンテンツの左パディング
+  const TIMELINE_LEFT = 70;
+  const DOT_LEFT = 65;
+  const CONTENT_PAD = 96;
 
   return (
     <div className="pt-28 pb-32 bg-black min-h-screen">
