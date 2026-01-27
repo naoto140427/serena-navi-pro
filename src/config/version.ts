@@ -1,4 +1,4 @@
-export const APP_VERSION = "0.9.4 Beta";
+export const APP_VERSION = "1.0.3 Beta";
 export const BUILD_DATE = "2026.01.05"; // 旅行開始日に合わせるか、今日の日付
 
 export type ReleaseNote = {
