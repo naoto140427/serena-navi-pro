@@ -7,7 +7,7 @@ import {
   Play, Pause, SkipForward, LogIn, X, ExternalLink,
   CheckCircle2, CarFront, UtensilsCrossed, Cigarette, Droplets, ShoppingBag,
   Settings, ChevronRight, User, Bell, Trash2, Info,
-  Sun, Cloud, CloudRain, Snowflake, Moon, Gavel, ShieldCheck, Gauge
+  Sun, Cloud, CloudRain, Snowflake, Moon, Gavel, ShieldCheck, Gauge, Calendar
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSpotify } from '../hooks/useSpotify';
@@ -356,57 +356,83 @@ const GuideTab = () => {
   const { waypoints } = useNavStore();
   const [selectedSpot, setSelectedSpot] = useState<any>(null);
 
+  // 日付の区切り定義
+  const dayHeaders: Record<string, string> = {
+    'start': 'DAY 0: NIGHT CRUISE 🌙',
+    'ise_jingu': 'DAY 1: MIE / GOD & BEEF ⛩️',
+    'metasequoia': 'DAY 2: SHIGA & NARA & KOBE 🦌',
+    'hiroshima_okonomi': 'DAY 3: THE RETURN 🏠'
+  };
+
   const guideSpots = waypoints.filter(w => 
-    w.description || w.quests || w.type === 'sightseeing' || w.type === 'hotel' || w.driverIntel
+    w.description || w.quests || w.type === 'sightseeing' || w.type === 'hotel' || w.driverIntel || dayHeaders[w.id]
   );
 
   return (
     <div className="pb-24 px-4 relative">
-      <h3 className="text-xs font-bold text-zinc-500 uppercase mb-4 px-1">FIELD MANUAL</h3>
+      <h3 className="text-xs font-bold text-zinc-500 uppercase mb-4 px-1 flex items-center gap-2">
+        <Calendar size={14} /> FIELD MANUAL
+      </h3>
       
       <div className="grid gap-4">
         {guideSpots.map((spot) => (
-          <motion.button
-            key={spot.id}
-            layoutId={`card-${spot.id}`}
-            onClick={() => setSelectedSpot(spot)}
-            className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden text-left relative group w-full shadow-lg"
-          >
-            <div className="h-36 w-full relative overflow-hidden">
-              {spot.image ? (
-                <img src={spot.image} alt={spot.name} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity duration-500" />
-              ) : (
-                <div className="w-full h-full bg-zinc-800" />
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-zinc-900/40 to-transparent"></div>
-              
-              <div className="absolute top-2 right-2 bg-black/40 backdrop-blur-md p-2 rounded-lg border border-white/10 shadow-lg">
-                 {spot.type === 'hotel' ? <div className="text-xs">🏨</div> : 
-                  spot.type === 'sightseeing' ? <div className="text-xs">📸</div> : 
-                  spot.type === 'parking' ? <div className="text-xs">🅿️</div> : 
-                  <div className="text-xs">📍</div>}
+          <React.Fragment key={spot.id}>
+            {/* DAY HEADER */}
+            {dayHeaders[spot.id] && (
+              <div className="relative z-10 py-4">
+                <div className="bg-zinc-900/80 border border-blue-500/30 backdrop-blur-md text-blue-400 text-xs font-bold px-4 py-2 rounded-full inline-block shadow-lg">
+                  {dayHeaders[spot.id]}
+                </div>
               </div>
-              
-              {spot.budget && (
-                <div className="absolute top-2 left-2 bg-green-900/80 backdrop-blur-md px-2 py-1 rounded text-[10px] font-bold text-green-400 border border-green-500/30">
-                  {spot.budget}
-                </div>
-              )}
-            </div>
+            )}
 
-            <div className="p-5 -mt-8 relative z-10">
-              <h3 className="font-bold text-xl text-white leading-tight mb-2 drop-shadow-md">{spot.name}</h3>
-              <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed">{spot.description || "詳細情報なし"}</p>
-              
-              {spot.specs && (
-                <div className="mt-3 flex gap-2">
-                   {spot.specs.toilet === 'clean' && <span className="text-[10px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/30">TOILET:OK</span>}
-                   {spot.specs.smoking && <span className="text-[10px] bg-gray-500/20 text-gray-400 px-1.5 py-0.5 rounded border border-gray-500/30">SMOKING</span>}
-                   {spot.gourmet && <span className="text-[10px] bg-orange-500/20 text-orange-400 px-1.5 py-0.5 rounded border border-orange-500/30">EAT</span>}
+            {/* CARD */}
+            <motion.button
+              layoutId={`card-${spot.id}`}
+              onClick={() => setSelectedSpot(spot)}
+              className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden text-left relative group w-full shadow-lg"
+            >
+              <div className="h-36 w-full relative overflow-hidden">
+                {spot.image ? (
+                  <img src={spot.image} alt={spot.name} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity duration-500" />
+                ) : (
+                  <div className="w-full h-full bg-zinc-800" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-zinc-900/40 to-transparent"></div>
+                
+                <div className="absolute top-2 right-2 bg-black/40 backdrop-blur-md p-2 rounded-lg border border-white/10 shadow-lg">
+                   {spot.type === 'hotel' ? <div className="text-xs">🏨</div> : 
+                    spot.type === 'sightseeing' ? <div className="text-xs">📸</div> : 
+                    spot.type === 'parking' ? <div className="text-xs">🅿️</div> : 
+                    <div className="text-xs">📍</div>}
                 </div>
-              )}
-            </div>
-          </motion.button>
+                
+                {spot.budget && (
+                  <div className="absolute top-2 left-2 bg-green-900/80 backdrop-blur-md px-2 py-1 rounded text-[10px] font-bold text-green-400 border border-green-500/30">
+                    {spot.budget}
+                  </div>
+                )}
+              </div>
+
+              <div className="p-5 -mt-8 relative z-10">
+                <div className="flex justify-between items-start mb-1">
+                  <h3 className="font-bold text-xl text-white leading-tight drop-shadow-md">{spot.name}</h3>
+                </div>
+                <div className="text-xs font-mono text-blue-400 font-bold mb-2">
+                  ETA: {spot.scheduledTime || '--:--'}
+                </div>
+                <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed">{spot.description || "詳細情報なし"}</p>
+                
+                {spot.specs && (
+                  <div className="mt-3 flex gap-2">
+                     {spot.specs.toilet === 'clean' && <span className="text-[10px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/30">TOILET:OK</span>}
+                     {spot.specs.smoking && <span className="text-[10px] bg-gray-500/20 text-gray-400 px-1.5 py-0.5 rounded border border-gray-500/30">SMOKING</span>}
+                     {spot.gourmet && <span className="text-[10px] bg-orange-500/20 text-orange-400 px-1.5 py-0.5 rounded border border-orange-500/30">EAT</span>}
+                  </div>
+                )}
+              </div>
+            </motion.button>
+          </React.Fragment>
         ))}
       </div>
 
