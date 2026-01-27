@@ -67,10 +67,6 @@ export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => (
   },
   geoFences: initialGeoFences,
 
-// src/store/useNavStore.ts の waypoints 部分
-
-// src/store/useNavStore.ts の waypoints 部分
-
   waypoints: [
     // --- DAY 0 ---
     { 
@@ -143,8 +139,26 @@ export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => (
       weather: { type: 'rain', temp: '8°C' },
       scheduledTime: '18:00'
     },
+    { 
+      id: 'dormy_inn_tsu', name: '🏨 ドーミーイン津', coords: { lat: 34.7332, lng: 136.5117 }, type: 'hotel', scheduledTime: '21:00',
+      description: 'DAY 1 GOAL. サウナで整え。', 
+      image: 'https://images.unsplash.com/photo-1560185127-6ed189bf02f4?q=80&w=800',
+      quests: ['夜鳴きそば', '朝風呂'],
+      specs: { toilet: 'clean', smoking: true, vending: true },
+      weather: { type: 'cloudy', temp: '5°C' }
+    },
 
-    // --- DAY 2: NARA & KOBE ---
+    // --- DAY 2: SHIGA (METASEQUOIA) & NARA & KOBE ---
+    { 
+      id: 'metasequoia', name: '🌲 メタセコイア並木', coords: { lat: 35.4568, lng: 136.0355 }, type: 'sightseeing',
+      description: '冬のソナタ的絶景ロード。雪化粧していれば奇跡。',
+      image: 'https://images.unsplash.com/photo-1542358896-7e3e4a9e5251?q=80&w=800',
+      quests: ['並木の真ん中で写真撮影', 'マキノピックランドでジェラート'],
+      driverIntel: { parking: '「マキノピックランド」駐車場が無料。路駐は絶対NG。', road: '冬は積雪エリア。ノーマルタイヤならライブカメラ要確認。' },
+      specs: { toilet: 'normal', smoking: true, vending: true },
+      weather: { type: 'snow', temp: '2°C' },
+      scheduledTime: '10:30' // 津を8:30に出発
+    },
     { 
       id: 'nara_park', name: '奈良公園', coords: { lat: 34.6850, lng: 135.8430 }, type: 'sightseeing',
       description: '鹿の帝国。人間は下僕。',
@@ -154,7 +168,7 @@ export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => (
       driverIntel: { parking: '県営駐車場が安牌だが混む。少し離れたコインパ推奨。', road: '鹿の飛び出し注意（マジで出る）。' },
       specs: { toilet: 'normal', smoking: false, vending: true },
       weather: { type: 'sunny', temp: '15°C' },
-      scheduledTime: '10:00'
+      scheduledTime: '13:00' // 時間調整
     },
     { 
       id: 'arima_onsen', name: '♨️ 有馬温泉 金の湯', coords: { lat: 34.7968, lng: 135.2478 }, type: 'parking',
@@ -166,7 +180,7 @@ export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => (
       gourmet: { item: '竹中肉店コロッケ', price: '¥150', tip: '揚げたてを狙え。' },
       specs: { toilet: 'clean', smoking: false, vending: true },
       weather: { type: 'cloudy', temp: '11°C' },
-      scheduledTime: '14:00'
+      scheduledTime: '16:00' // 時間調整
     },
     { 
       id: 'kobe_hotel', name: '🏨 カンデオホテルズ神戸', coords: { lat: 34.6908, lng: 135.1914 }, type: 'hotel',
@@ -176,7 +190,7 @@ export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => (
       driverIntel: { parking: '提携駐車場ありだが、高さ制限に注意。要確認。', road: '一方通行多し。ナビ絶対遵守。' },
       specs: { toilet: 'clean', smoking: true, vending: true },
       weather: { type: 'rain', temp: '9°C' },
-      scheduledTime: '18:00'
+      scheduledTime: '19:00'
     },
 
     // --- DAY 3: HIROSHIMA & GOAL ---
