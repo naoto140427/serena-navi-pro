@@ -1,421 +1,320 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavStore } from '../store/useNavStore';
 import { 
-  Music, MapPin, Navigation, ArrowRight, 
+  Music, MapPin, Navigation, 
   Wallet, Activity, AlertTriangle, ScanLine, 
-  Clock, Radio, Loader2,
-  Play, Pause, SkipForward, LogIn,
-  CheckCircle2, CarFront, UtensilsCrossed, Cigarette, Droplets, ShoppingBag,
+  Play, Pause, SkipForward,
+  CheckCircle2, UtensilsCrossed, ShoppingBag,
   Settings, ChevronRight, User, Trash2,
-  Sun, Cloud, CloudRain, Snowflake, 
-  Gavel, ChevronUp, Coffee
+  Sun, CloudRain, 
+  Gavel, Coffee, Wind
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSpotify } from '../hooks/useSpotify';
 import { TwitterFeed } from '../components/widgets/TwitterFeed';
 
-// --- Shared Components ---
+// --- Apple UI Components ---
 
-// Apple-style Glass Card
-const GlassCard = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
-  <div className={`bg-zinc-900/60 backdrop-blur-xl border border-white/5 rounded-[20px] shadow-sm ${className}`}>
+const IOSCard = ({ children, className = "", onClick }: { children: React.ReactNode, className?: string, onClick?: () => void }) => (
+  <motion.div 
+    layout
+    whileTap={{ scale: 0.98 }}
+    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+    onClick={onClick}
+    className={`bg-[#1c1c1e]/80 backdrop-blur-xl border border-white/5 rounded-[24px] shadow-lg overflow-hidden ${className}`}
+  >
     {children}
+  </motion.div>
+);
+
+const IOSTitle = ({ children, subtitle }: { children: React.ReactNode, subtitle?: string }) => (
+  <div className="mb-6 px-2">
+    <h2 className="text-[34px] font-bold text-white leading-tight tracking-tight">{children}</h2>
+    {subtitle && <p className="text-zinc-500 font-medium text-[17px] mt-1">{subtitle}</p>}
   </div>
 );
 
-// --- Telemetry Header ---
-const TelemetryHeader = () => {
+// --- Telemetry Dynamic Island ---
+const DynamicHeader = () => {
   const { currentSpeed, nextWaypointEta, currentAreaText, activeNotification, waypoints } = useNavStore();
-  const nextPoint = waypoints.find(w => 
-    w.type === 'sightseeing' || w.type === 'parking' || w.type === 'hotel'
-  ) || waypoints[1];
+  const nextPoint = waypoints.find(w => w.type !== 'start' && w.type !== 'pickup') || waypoints[1];
   const weather = nextPoint?.weather || { type: 'sunny', temp: '--' };
-  
-  const WeatherIcon = () => {
-    switch (weather.type) {
-      case 'rain': return <CloudRain size={16} className="text-blue-400 drop-shadow-[0_0_8px_rgba(96,165,250,0.5)]" />;
-      case 'cloudy': return <Cloud size={16} className="text-gray-400" />;
-      case 'snow': return <Snowflake size={16} className="text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" />;
-      default: return <Sun size={16} className="text-orange-400 drop-shadow-[0_0_8px_rgba(251,146,60,0.5)]" />;
-    }
-  };
-  
+
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-xl border-b border-white/5 pt-safe-top pb-3 px-4 transition-all duration-500">
-      <div className="flex justify-between items-end mb-3">
-        <div>
-          <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest flex items-center gap-1.5 mb-0.5">
-            <MapPin size={10} /> Location
-          </div>
-          <div className="text-base font-bold text-white tracking-tight">{currentAreaText}</div>
+    <motion.div 
+      initial={{ y: -100 }} animate={{ y: 0 }} 
+      className="fixed top-safe left-4 right-4 z-50 flex justify-center pointer-events-none"
+    >
+      <div className="bg-black/80 backdrop-blur-2xl border border-white/10 rounded-full py-3 px-6 flex items-center gap-6 shadow-2xl pointer-events-auto min-w-[320px] justify-between">
+        
+        {/* Speed */}
+        <div className="flex flex-col items-center min-w-[60px]">
+          <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Km/h</span>
+          <span className="text-2xl font-black text-white font-mono leading-none">{currentSpeed}</span>
         </div>
-        <div className="text-right">
-          <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-0.5">Ground Speed</div>
-          <div className="text-3xl font-bold text-white font-mono leading-none tracking-tighter">
-            {currentSpeed} <span className="text-xs font-medium text-zinc-600 tracking-normal">km/h</span>
+
+        {/* Divider */}
+        <div className="w-[1px] h-8 bg-white/10" />
+
+        {/* Location & ETA */}
+        <div className="flex-1 flex flex-col items-center text-center">
+          <div className="flex items-center gap-1.5 text-white font-bold text-sm truncate max-w-[140px]">
+            <Navigation size={12} className="text-blue-500 fill-blue-500" />
+            {currentAreaText}
+          </div>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-[11px] text-zinc-400 font-mono">ETA {nextWaypointEta}</span>
+            <span className="text-[11px] text-zinc-600">•</span>
+            <div className="flex items-center gap-1 text-[11px] text-zinc-400">
+              {weather.type === 'rain' ? <CloudRain size={10} /> : <Sun size={10} />}
+              {weather.temp}
+            </div>
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="w-[1px] h-8 bg-white/10" />
+
+        {/* Status */}
+        <div className="flex flex-col items-center min-w-[40px]">
+          <div className={`w-2 h-2 rounded-full mb-1 ${activeNotification ? 'bg-green-500 animate-pulse' : 'bg-zinc-700'}`} />
+          <span className="text-[9px] text-zinc-500 font-bold">LINK</span>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+// --- Widget: Now Playing (Apple Music Style) ---
+const NowPlayingWidget = () => {
+  const { token, track, isPlaying, handleLogin, handleNext, handlePlayPause } = useSpotify();
+
+  if (!token) return (
+    <IOSCard className="col-span-2 aspect-[2/1] flex flex-col items-center justify-center bg-gradient-to-br from-green-900/20 to-[#1c1c1e]">
+      <button onClick={handleLogin} className="flex flex-col items-center gap-3">
+        <div className="w-12 h-12 bg-[#1DB954] rounded-full flex items-center justify-center shadow-lg shadow-green-900/50">
+          <Music className="text-black ml-1" size={24} />
+        </div>
+        <span className="text-sm font-bold text-white">Connect Spotify</span>
+      </button>
+    </IOSCard>
+  );
+
+  return (
+    <IOSCard className="col-span-2 relative group overflow-hidden">
+      {track?.album.images[0]?.url && (
+        <div 
+          className="absolute inset-0 bg-cover bg-center opacity-30 blur-3xl scale-150 transition-all duration-1000 group-hover:opacity-40"
+          style={{ backgroundImage: `url(${track.album.images[0].url})` }}
+        />
+      )}
+      <div className="relative z-10 p-5 flex items-center gap-5 h-full">
+        <motion.img 
+          key={track?.id}
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          src={track?.album.images[0]?.url} 
+          alt="Art" 
+          className={`w-28 h-28 rounded-xl shadow-2xl ${isPlaying ? 'scale-100' : 'scale-95 grayscale opacity-80'} transition-all duration-700`}
+        />
+        <div className="flex-1 min-w-0 flex flex-col justify-center h-full py-2">
+          <div>
+            <h3 className="text-xl font-bold text-white leading-tight truncate">{track?.name || "Not Playing"}</h3>
+            <p className="text-base text-white/60 truncate mt-1">{track?.artists.map((a:any) => a.name).join(', ')}</p>
+          </div>
+          <div className="flex items-center gap-6 mt-5">
+            <button onClick={handlePlayPause} className="w-12 h-12 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-lg">
+              {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
+            </button>
+            <button onClick={handleNext} className="text-white/70 hover:text-white transition-colors">
+              <SkipForward size={32} fill="currentColor" />
+            </button>
           </div>
         </div>
       </div>
+    </IOSCard>
+  );
+};
+
+// --- Widget: Quick Actions (HomeKit Style) ---
+const QuickActionWidget = ({ icon: Icon, label, color, onClick }: any) => (
+  <IOSCard onClick={onClick} className="aspect-square flex flex-col justify-between p-4 bg-[#2c2c2e]/50 hover:bg-[#3a3a3c] transition-colors border-none">
+    <div className={`w-10 h-10 rounded-full ${color} flex items-center justify-center text-white`}>
+      <Icon size={20} />
+    </div>
+    <span className="font-bold text-sm text-white leading-tight">{label}</span>
+  </IOSCard>
+);
+
+// --- Widget: The Judge (Mini App Style) ---
+const JudgeWidget = () => {
+  const [result, setResult] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const members = ['Naoto', 'Taira', 'Haga'];
+
+  const spin = () => {
+    if(loading) return;
+    setLoading(true);
+    setResult(null);
+    let i = 0;
+    const interval = setInterval(() => {
+      setResult(members[Math.floor(Math.random() * members.length)]);
+      i++;
+      if (i > 12) {
+        clearInterval(interval);
+        setLoading(false);
+      }
+    }, 80);
+  };
+
+  return (
+    <IOSCard className="col-span-2 p-5 bg-gradient-to-br from-[#FFD60A]/10 to-[#1c1c1e]">
+      <div className="flex justify-between items-start mb-4">
+        <div>
+          <h3 className="text-zinc-400 text-xs font-bold uppercase tracking-wider mb-1">The Judge</h3>
+          <div className="text-2xl font-black text-white">{result || "Ready?"}</div>
+        </div>
+        <Gavel className="text-[#FFD60A]" size={24} />
+      </div>
+      <div className="flex gap-3">
+        <button onClick={() => spin()} className="flex-1 bg-[#2c2c2e] hover:bg-[#3a3a3c] py-3 rounded-xl text-xs font-bold text-white transition-all active:scale-95">
+          Who Pays?
+        </button>
+        <button onClick={() => spin()} className="flex-1 bg-[#2c2c2e] hover:bg-[#3a3a3c] py-3 rounded-xl text-xs font-bold text-white transition-all active:scale-95">
+          Next Driver
+        </button>
+      </div>
+    </IOSCard>
+  );
+};
+
+// --- Screen: Dashboard (Command Center) ---
+const DashboardScreen = () => {
+  const { sendNotification, currentUser } = useNavStore();
+  const handleSend = (type: string, msg: string) => {
+    sendNotification({ id: crypto.randomUUID(), type: type as any, message: msg, sender: currentUser || "Co-Pilot" });
+  };
+
+  return (
+    <div className="p-4 pt-32 pb-32 space-y-6">
+      <IOSTitle subtitle="Command Center">Dashboard</IOSTitle>
       
-      <div className="grid grid-cols-3 gap-2">
-        <div className="bg-zinc-800/50 rounded-lg p-2 flex items-center justify-center gap-2 border border-white/5">
-          <Clock size={14} className="text-blue-500" />
-          <div className="text-xs font-bold font-mono text-zinc-200">{nextWaypointEta}</div>
-        </div>
-        <div className="bg-zinc-800/50 rounded-lg p-2 flex items-center justify-center gap-2 border border-white/5">
-          <WeatherIcon />
-          <div className="text-xs font-bold font-mono text-zinc-200">{weather.temp}</div>
-        </div>
-        <div className="bg-zinc-800/50 rounded-lg p-2 flex items-center justify-center gap-2 border border-white/5">
-          <Radio size={14} className={activeNotification ? "text-green-500 animate-pulse" : "text-zinc-600"} />
-          <div className="text-xs font-bold text-zinc-200">{activeNotification ? "LINKED" : "READY"}</div>
-        </div>
+      <div className="grid grid-cols-2 gap-4">
+        <NowPlayingWidget />
+        
+        <QuickActionWidget icon={Coffee} label="Rest Request" color="bg-orange-500" onClick={() => handleSend('rest', 'トイレ休憩希望')} />
+        <QuickActionWidget icon={ShoppingBag} label="Store Stop" color="bg-blue-500" onClick={() => handleSend('info', 'コンビニ寄りたい')} />
+        <QuickActionWidget icon={Wind} label="Smoke Break" color="bg-zinc-500" onClick={() => handleSend('rest', 'タバコ休憩')} />
+        <QuickActionWidget icon={UtensilsCrossed} label="Food Search" color="bg-red-500" onClick={() => handleSend('info', 'ご飯探して')} />
+        
+        <JudgeWidget />
       </div>
     </div>
   );
 };
 
-// --- DJ Panel ---
-const DJPanel = () => {
-  const { token, track, isPlaying, handleLogin, handleNext, handlePlayPause } = useSpotify();
-  
-  if (!token) {
-    return (
-      <GlassCard className="p-6 text-center">
-        <div className="w-14 h-14 bg-[#1DB954] rounded-full flex items-center justify-center mx-auto mb-4 shadow-[0_4px_20px_rgba(29,185,84,0.3)]">
-          <Music className="text-black" size={28} />
-        </div>
-        <h3 className="text-white font-bold mb-1">Apple CarPlay Style</h3>
-        <p className="text-zinc-500 text-xs mb-4">Connect Spotify for sync.</p>
-        <button onClick={handleLogin} className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
-          <LogIn size={18} /> Connect
-        </button>
-      </GlassCard>
-    );
-  }
-
-  return (
-    <GlassCard className="p-0 overflow-hidden relative group">
-      {/* Background Blur Image */}
-      {track && (
-        <div 
-          className="absolute inset-0 bg-cover bg-center opacity-20 blur-2xl scale-110 transition-all duration-1000"
-          style={{ backgroundImage: `url(${track.album.images[0]?.url})` }}
-        />
-      )}
-      
-      <div className="p-5 relative z-10">
-        <div className="flex items-center gap-4">
-          <motion.div 
-            animate={{ scale: isPlaying ? 1.05 : 1 }}
-            transition={{ type: "spring", stiffness: 300, damping: 20 }}
-            className="relative"
-          >
-            <img 
-              src={track?.album.images[0]?.url} 
-              alt="Art" 
-              className="w-20 h-20 rounded-xl shadow-2xl object-cover"
-            />
-            <div className="absolute -bottom-2 -right-2 bg-black/80 rounded-full p-1.5 border border-white/10">
-              <Music size={10} className="text-[#1DB954]" />
-            </div>
-          </motion.div>
-          
-          <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-bold text-white leading-tight truncate">{track?.name || "Not Playing"}</h3>
-            <p className="text-sm text-zinc-400 truncate mt-0.5">{track?.artists.map((a:any) => a.name).join(', ')}</p>
-          </div>
-        </div>
-
-        <div className="flex justify-between items-center mt-6 px-4">
-          <button onClick={handlePlayPause} className="text-white hover:text-zinc-300 transition-colors">
-            {isPlaying ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" />}
-          </button>
-          <button onClick={handleNext} className="text-white hover:text-zinc-300 transition-colors active:scale-90">
-            <SkipForward size={32} fill="currentColor" />
-          </button>
-        </div>
-      </div>
-    </GlassCard>
-  );
-};
-
-// --- Judge Panel (Revived & Restyled) ---
-const JudgePanel = () => {
-  const [result, setResult] = useState<string | null>(null);
-  const [isSpinning, setIsSpinning] = useState(false);
-  const [mode, setMode] = useState<'PAY' | 'DRIVE' | null>(null);
-  const members = ['Naoto', 'Taira', 'Haga'];
-
-  const handleSpin = (selectedMode: 'PAY' | 'DRIVE') => {
-    if (isSpinning) return;
-    setMode(selectedMode);
-    setIsSpinning(true);
-    setResult(null);
-    let count = 0;
-    const interval = setInterval(() => {
-      setResult(members[Math.floor(Math.random() * members.length)]);
-      count++;
-      if (count > 15) { clearInterval(interval); setIsSpinning(false); setResult(members[Math.floor(Math.random() * members.length)]); }
-    }, 100);
-  };
-
-  return (
-    <GlassCard className="p-4 mt-6">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xs font-bold text-zinc-500 uppercase flex items-center gap-2">
-          <Gavel size={14} /> The Judge {mode ? `- ${mode}` : ''}
-        </h3>
-        <div className={`text-xl font-black font-mono tracking-wider ${isSpinning ? 'text-zinc-500 animate-pulse' : 'text-[#FFD60A]'}`}>
-          {result || "READY"}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <button onClick={() => handleSpin('PAY')} disabled={isSpinning} className="bg-zinc-800/50 hover:bg-red-900/30 border border-white/5 hover:border-red-500 text-zinc-300 hover:text-red-400 p-3 rounded-xl font-bold text-xs transition-all active:scale-[0.98] flex flex-col items-center gap-1 group">
-          <Wallet size={20} className="group-hover:animate-bounce mb-1" />
-          Who Pays?
-        </button>
-        <button onClick={() => handleSpin('DRIVE')} disabled={isSpinning} className="bg-zinc-800/50 hover:bg-blue-900/30 border border-white/5 hover:border-blue-500 text-zinc-300 hover:text-blue-400 p-3 rounded-xl font-bold text-xs transition-all active:scale-[0.98] flex flex-col items-center gap-1 group">
-          <CarFront size={20} className="group-hover:animate-bounce mb-1" />
-          Next Driver?
-        </button>
-      </div>
-    </GlassCard>
-  );
-};
-
-// --- Guide Tab (Apple Maps Level - Layout Fixed) ---
-const GuideTab = () => {
+// --- Screen: Guide (Apple Maps Transit Style) ---
+const GuideScreen = () => {
   const { waypoints, nextWaypoint } = useNavStore();
   const nextWaypointId = nextWaypoint?.id;
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const dayHeaders: Record<string, string> = {
-    'start': 'Day 0',
-    'ise_jingu': 'Day 1',
-    'metasequoia': 'Day 2',
-    'hiroshima_okonomi': 'Day 3'
-  };
-  
-  const daySubHeaders: Record<string, string> = {
-    'start': 'Departure Night',
-    'ise_jingu': 'Mie & Matsusaka',
-    'metasequoia': 'Shiga & Kobe',
-    'hiroshima_okonomi': 'The Return'
-  };
-
-  const toggleExpand = (id: string) => {
-    setExpandedId(expandedId === id ? null : id);
-  };
-
-  // 現在の進捗indexを取得
-  const activeIndex = waypoints.findIndex(w => w.id === nextWaypointId);
-
-  // Layout Constants
-  const TIMELINE_LEFT = 58; // 線の左位置
-  const DOT_LEFT = 53;      // ドットの左位置 (LINE - 5)
-  const CONTENT_PAD = 84;   // コンテンツの左パディング
+  // Group waypoints by Day Logic (Simplified for Demo)
+  const days = [
+    { id: 'start', label: 'Day 0', sub: 'Night Cruise' },
+    { id: 'ise_jingu', label: 'Day 1', sub: 'Mie & Ise' },
+    { id: 'metasequoia', label: 'Day 2', sub: 'Shiga & Kobe' },
+    { id: 'hiroshima_okonomi', label: 'Day 3', sub: 'Return' },
+  ];
 
   return (
-    <div className="pt-32 pb-32 px-0 min-h-screen bg-black">
+    <div className="pt-28 pb-32 bg-black min-h-screen">
+      <div className="px-6 mb-4">
+        <h2 className="text-[34px] font-bold text-white">Timeline</h2>
+      </div>
+      
       <div className="relative">
+        <div className="absolute left-[28px] top-0 bottom-0 w-[2px] bg-zinc-800" />
         
-        {/* Timeline Line (Dynamic) */}
-        <div className={`absolute top-0 bottom-0 w-[2px] bg-zinc-800 rounded-full`} style={{ left: TIMELINE_LEFT }} />
-        {/* Progress Line (Blue) */}
-        <motion.div 
-          initial={{ height: 0 }}
-          animate={{ height: `${(Math.max(0, activeIndex) / waypoints.length) * 100}%` }}
-          className={`absolute top-0 w-[2px] bg-[#0A84FF] rounded-full z-0 shadow-[0_0_10px_#0A84FF]`}
-          style={{ left: TIMELINE_LEFT }}
-        />
-
-        {waypoints.map((spot, index) => {
+        {waypoints.map((spot) => {
           const isNext = spot.id === nextWaypointId;
-          const isPast = index < activeIndex;
+          const isDayHeader = days.find(d => d.id === spot.id);
           const isExpanded = expandedId === spot.id;
-          const dayHeader = dayHeaders[spot.id];
-          
+
           return (
-            <React.Fragment key={spot.id}>
-              {/* Sticky Header with Blur */}
-              {dayHeader && (
-                <div className="sticky top-[130px] z-30 mb-6 mt-8 first:mt-0">
-                  <div className="absolute inset-0 bg-black/80 backdrop-blur-xl border-y border-white/5" />
-                  <div className="relative px-6 py-3 flex justify-between items-baseline">
-                    <h2 className="text-2xl font-bold text-white tracking-tight">{dayHeader}</h2>
-                    <span className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">{daySubHeaders[spot.id]}</span>
-                  </div>
+            <div key={spot.id} className="relative mb-6">
+              {isDayHeader && (
+                <div className="sticky top-[110px] z-20 bg-black/90 backdrop-blur-xl border-y border-white/10 py-2 px-6 mb-4 flex items-baseline justify-between">
+                  <span className="text-lg font-bold text-white">{isDayHeader.label}</span>
+                  <span className="text-xs font-semibold text-zinc-500 uppercase">{isDayHeader.sub}</span>
                 </div>
               )}
 
-              <motion.div 
-                layout 
-                className={`relative pr-4 py-3 group`}
-                style={{ paddingLeft: CONTENT_PAD }}
-              >
-                {/* Time Stamp (Left - No overlap now) */}
-                <div className="absolute left-2 top-[18px] w-10 text-right">
-                  <span className={`text-[11px] font-mono font-bold tracking-tight ${isNext ? 'text-[#0A84FF]' : isPast ? 'text-zinc-600' : 'text-zinc-400'}`}>
-                    {spot.scheduledTime}
-                  </span>
-                </div>
-
-                {/* Timeline Node (The Dot) */}
+              <div className="pl-16 pr-4 relative">
+                {/* Timeline Dot */}
                 <div 
-                  onClick={() => toggleExpand(spot.id)}
-                  className={`absolute top-[20px] z-10 cursor-pointer`}
-                  style={{ left: DOT_LEFT }}
-                >
-                  <motion.div 
-                    animate={{ 
-                      scale: isNext ? 1.2 : 1,
-                      backgroundColor: isNext ? '#0A84FF' : isPast ? '#27272a' : '#52525b',
-                      borderColor: isNext ? 'rgba(10, 132, 255, 0.3)' : '#000'
-                    }}
-                    className={`w-3 h-3 rounded-full border-[3px] box-content shadow-lg transition-colors duration-500`}
-                  />
-                  {/* Pulse Effect for Next Waypoint */}
-                  {isNext && (
-                    <motion.div 
-                      animate={{ scale: [1, 2.5], opacity: [0.5, 0] }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
-                      className="absolute inset-0 bg-[#0A84FF] rounded-full -z-10"
-                    />
-                  )}
+                  className={`absolute left-[22px] top-1 w-3.5 h-3.5 rounded-full border-[3px] z-10 box-content transition-all ${
+                    isNext ? 'bg-[#007AFF] border-[#007AFF]/30 shadow-[0_0_15px_#007AFF]' : 'bg-[#1c1c1e] border-zinc-600'
+                  }`} 
+                />
+                
+                {/* Time */}
+                <div className="absolute left-2 top-2 text-[10px] font-mono font-bold text-zinc-500 w-12 text-right pr-6">
+                  {spot.scheduledTime}
                 </div>
 
-                {/* Card Content */}
-                <motion.div 
+                {/* Content Card */}
+                <motion.div
                   layout
-                  onClick={() => toggleExpand(spot.id)}
-                  className={`relative overflow-hidden rounded-[18px] cursor-pointer border transition-all duration-300 ${
-                    isExpanded 
-                      ? 'bg-zinc-900 border-zinc-700 shadow-2xl z-20' 
-                      : 'bg-transparent border-transparent hover:bg-zinc-900/30'
-                  }`}
+                  onClick={() => setExpandedId(isExpanded ? null : spot.id)}
+                  className={`rounded-2xl border ${isExpanded ? 'bg-[#1c1c1e] border-zinc-700' : 'bg-transparent border-transparent'} overflow-hidden transition-colors`}
                 >
-                  <div className="p-3">
-                    <div className="flex justify-between items-center">
-                      <h4 className={`text-[17px] font-semibold tracking-tight transition-colors ${isNext || isExpanded ? 'text-white' : 'text-zinc-400'}`}>
-                        {spot.name}
-                      </h4>
-                      {isExpanded && (
-                        <button className="bg-zinc-800 rounded-full p-1 text-zinc-400">
-                          <ChevronUp size={16} />
-                        </button>
-                      )}
+                  <div className={`p-3 ${isExpanded ? '' : 'hover:bg-white/5 rounded-2xl'}`}>
+                    <div className="flex justify-between items-start">
+                      <h3 className={`text-[17px] font-semibold ${isNext ? 'text-white' : 'text-zinc-300'}`}>{spot.name}</h3>
+                      {spot.type === 'hotel' && <span className="bg-indigo-500/20 text-indigo-300 text-[10px] font-bold px-2 py-0.5 rounded">STAY</span>}
                     </div>
-
-                    {/* Collapsed Badges */}
                     {!isExpanded && (
-                      <div className="flex items-center gap-3 mt-1 pl-0.5">
-                        {spot.type === 'hotel' && <span className="text-[10px] text-zinc-500 font-medium">Hotel</span>}
-                        {spot.quests && spot.quests.length > 0 && <span className="text-[10px] text-[#0A84FF] font-medium flex items-center gap-1"><CheckCircle2 size={10}/> {spot.quests.length}</span>}
-                      </div>
+                      <div className="text-sm text-zinc-500 mt-0.5 truncate">{spot.description}</div>
                     )}
                   </div>
 
-                  {/* Expanded Content Area */}
                   <AnimatePresence>
                     {isExpanded && (
                       <motion.div 
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="px-3 pb-4"
                       >
-                        {/* Hero Image */}
                         {spot.image && (
-                          <div className="h-40 w-full relative mt-1">
-                            <img src={spot.image} alt="Location" className="w-full h-full object-cover" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 to-transparent" />
-                            <div className="absolute bottom-3 left-4 right-4">
-                              <p className="text-sm font-medium text-white/90 leading-snug drop-shadow-md">{spot.description}</p>
-                            </div>
+                          <div className="h-32 w-full rounded-lg overflow-hidden mb-3 relative">
+                            <img src={spot.image} className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                           </div>
                         )}
                         
-                        {!spot.image && spot.description && (
-                          <div className="px-4 pb-2">
-                            <p className="text-sm text-zinc-400 leading-relaxed border-l-2 border-zinc-700 pl-3">{spot.description}</p>
-                          </div>
-                        )}
-
-                        {/* Action Grid */}
-                        <div className="p-4 space-y-4">
-                          {/* 1. Missions */}
-                          {spot.quests && (
-                            <div className="bg-black/40 rounded-xl p-3 border border-white/5">
-                              <h5 className="text-[10px] font-bold text-zinc-500 uppercase mb-2 flex items-center gap-1">
-                                <CheckCircle2 size={10} /> Mission Objectives
-                              </h5>
-                              <ul className="space-y-2">
-                                {spot.quests.map((q, i) => (
-                                  <li key={i} className="flex items-start gap-2 text-xs font-medium text-zinc-300">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-[#0A84FF] mt-1.5 shrink-0 shadow-[0_0_5px_#0A84FF]" />
-                                    {q}
-                                  </li>
-                                ))}
-                              </ul>
+                        <div className="grid grid-cols-2 gap-2 mb-3">
+                          {spot.quests?.map((q, i) => (
+                            <div key={i} className="bg-black/40 p-2 rounded-lg text-xs text-zinc-300 flex items-start gap-2">
+                              <CheckCircle2 size={12} className="mt-0.5 text-zinc-500" /> {q}
                             </div>
-                          )}
-
-                          {/* 2. Info Columns */}
-                          <div className="grid grid-cols-2 gap-3">
-                            {spot.driverIntel && (
-                              <div className="bg-blue-500/10 rounded-xl p-3 border border-blue-500/20">
-                                <h5 className="text-[10px] font-bold text-blue-400 uppercase mb-1 flex items-center gap-1">
-                                  <CarFront size={12} /> Driver
-                                </h5>
-                                <p className="text-[11px] text-blue-100/80 leading-snug">{spot.driverIntel.parking}</p>
-                              </div>
-                            )}
-                            
-                            {spot.gourmet && (
-                              <div className="bg-orange-500/10 rounded-xl p-3 border border-orange-500/20">
-                                <h5 className="text-[10px] font-bold text-orange-400 uppercase mb-1 flex items-center gap-1">
-                                  <UtensilsCrossed size={12} /> Eat
-                                </h5>
-                                <div className="text-[11px] font-bold text-orange-100">{spot.gourmet.item}</div>
-                                <div className="text-[10px] text-orange-200/60 mt-0.5">{spot.gourmet.price}</div>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* 3. Facilities */}
-                          {spot.specs && (
-                            <div className="flex items-center gap-3 py-2 border-t border-white/5">
-                              <div className={`flex items-center gap-1.5 text-[10px] font-bold ${spot.specs.toilet === 'clean' ? 'text-blue-400' : 'text-zinc-500'}`}>
-                                <Droplets size={12} /> {spot.specs.toilet === 'clean' ? 'CLEAN WC' : 'WC'}
-                              </div>
-                              <div className={`flex items-center gap-1.5 text-[10px] font-bold ${spot.specs.smoking ? 'text-zinc-400' : 'text-zinc-700 line-through'}`}>
-                                <Cigarette size={12} /> SMOKE
-                              </div>
-                              <div className={`flex items-center gap-1.5 text-[10px] font-bold ${spot.specs.vending ? 'text-green-400' : 'text-zinc-700'}`}>
-                                <ShoppingBag size={12} /> SHOP
-                              </div>
-                            </div>
-                          )}
-
-                          {/* 4. Action Button */}
-                          <a 
-                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(spot.name)}`}
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="flex items-center justify-center gap-2 w-full py-3.5 bg-[#007AFF] hover:bg-[#0062cc] active:scale-[0.98] rounded-xl text-xs font-bold text-white shadow-lg shadow-blue-900/30 transition-all"
-                          >
-                            <MapPin size={14} /> 
-                            Open in Maps
-                          </a>
+                          ))}
                         </div>
+
+                        <a 
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(spot.name)}`}
+                          target="_blank" rel="noreferrer"
+                          className="flex items-center justify-center w-full py-3 bg-[#007AFF] text-white text-sm font-bold rounded-xl active:scale-[0.98] transition-transform"
+                        >
+                          <Navigation size={16} className="mr-2" /> Open Maps
+                        </a>
                       </motion.div>
                     )}
                   </AnimatePresence>
                 </motion.div>
-              </motion.div>
-            </React.Fragment>
+              </div>
+            </div>
           );
         })}
       </div>
@@ -423,248 +322,203 @@ const GuideTab = () => {
   );
 };
 
-// --- Wallet & Settings & Traffic ---
-
-const WalletTab = () => {
+// --- Screen: Wallet (Apple Wallet Style) ---
+const WalletScreen = () => {
   const { expenses, addExpense } = useNavStore();
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
-  const [payer, setPayer] = useState('Naoto');
-  const [isScanning, setIsScanning] = useState(false);
+  const payer = 'Naoto'; // Fixed for this version
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const members = ['Naoto', 'Taira', 'Haga'];
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const total = expenses.reduce((sum, item) => sum + item.amount, 0);
+
+  const handleScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setIsScanning(true);
-    try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64String = reader.result as string;
-        const res = await fetch('/api/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: base64String }) });
-        const data = await res.json();
-        if (data.title && data.amount) { setTitle(data.title); setAmount(data.amount.toString()); } else { alert('金額を読み取れませんでした。'); }
-        setIsScanning(false);
-      };
-      reader.readAsDataURL(file);
-    } catch (error) { console.error(error); setIsScanning(false); alert('スキャンエラー'); }
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const res = await fetch('/api/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: reader.result }) });
+      const data = await res.json();
+      if(data.title) { setTitle(data.title); setAmount(data.amount); }
+    };
+    reader.readAsDataURL(file);
   };
 
-  const { total, settlements } = useMemo(() => {
-    const totalCalc = expenses.reduce((sum, item) => sum + item.amount, 0);
-    const perPerson = totalCalc > 0 ? Math.ceil(totalCalc / members.length) : 0;
-    const paidBy: Record<string, number> = { Naoto: 0, Taira: 0, Haga: 0 };
-    expenses.forEach(e => { if (paidBy[e.payer] !== undefined) paidBy[e.payer] += e.amount; });
-    const balances = members.map(name => ({ name, balance: paidBy[name] - perPerson }));
-    const debtors = balances.filter(b => b.balance < 0).sort((a, b) => a.balance - b.balance);
-    const creditors = balances.filter(b => b.balance > 0).sort((a, b) => b.balance - a.balance);
-    const results: { from: string; to: string; amount: number }[] = [];
-    let dIndex = 0, cIndex = 0;
-    while (dIndex < debtors.length && cIndex < creditors.length) {
-      const debt = debtors[dIndex];
-      const cred = creditors[cIndex];
-      const move = Math.min(Math.abs(debt.balance), cred.balance);
-      if (move > 0) { results.push({ from: debt.name, to: cred.name, amount: move }); debt.balance += move; cred.balance -= move; }
-      if (Math.abs(debt.balance) < 1) dIndex++;
-      if (cred.balance < 1) cIndex++;
-    }
-    return { total: totalCalc, settlements: results };
-  }, [expenses]);
-
-  const handleSubmit = () => { if (!title || !amount) return; addExpense(title, parseInt(amount), payer); setTitle(''); setAmount(''); };
+  const add = () => {
+    if(!title || !amount) return;
+    addExpense(title, parseInt(amount), payer);
+    setTitle(''); setAmount('');
+  };
 
   return (
-    <div className="pt-32 pb-32 px-4 min-h-screen bg-black">
-      <GlassCard className="p-6 mb-6 bg-gradient-to-br from-green-900/40 to-zinc-900/60 border-green-500/20">
-        <div className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Total Budget</div>
-        <div className="text-5xl font-thin font-mono text-white tracking-tighter">¥{total.toLocaleString()}</div>
-      </GlassCard>
+    <div className="pt-28 pb-32 px-4 bg-black min-h-screen">
+      <IOSTitle subtitle="Shared Expenses">Wallet</IOSTitle>
 
-      <GlassCard className="p-4 mb-6">
-        {isScanning && <div className="absolute inset-0 bg-black/80 z-20 flex flex-col items-center justify-center backdrop-blur-sm rounded-[20px]"><Loader2 className="animate-spin text-green-500 mb-2" size={32} /><span className="text-xs font-bold text-green-400 animate-pulse">Scanning...</span></div>}
-        <div className="space-y-4">
-          <div className="flex gap-3 items-center border-b border-white/5 pb-2">
-            <input type="text" placeholder="Description" value={title} onChange={e => setTitle(e.target.value)} className="flex-1 bg-transparent text-white outline-none placeholder:text-zinc-600" />
-            <button onClick={() => fileInputRef.current?.click()} className="text-zinc-400 hover:text-white transition-colors"><ScanLine size={20}/></button>
-            <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
-          </div>
-          <div className="flex gap-3 items-center border-b border-white/5 pb-2">
-            <span className="text-zinc-500">¥</span>
-            <input type="number" placeholder="0" value={amount} onChange={e => setAmount(e.target.value)} className="flex-1 bg-transparent text-white font-mono text-lg outline-none placeholder:text-zinc-600" />
-            <select value={payer} onChange={e => setPayer(e.target.value)} className="bg-transparent text-blue-400 font-bold outline-none text-right">
-              {members.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
-          </div>
-          <button onClick={handleSubmit} className="w-full bg-white text-black font-bold py-3 rounded-xl active:scale-[0.98] transition-transform">Add Expense</button>
+      {/* Main Card */}
+      <div className="relative h-48 rounded-[24px] bg-gradient-to-br from-[#1c1c1e] to-black border border-white/10 p-6 flex flex-col justify-between overflow-hidden mb-8 shadow-2xl">
+        <div className="absolute top-0 right-0 p-32 bg-blue-600/20 blur-[80px] rounded-full pointer-events-none" />
+        <div className="relative z-10 flex justify-between items-start">
+          <Wallet className="text-white/50" />
+          <span className="text-xs font-bold text-zinc-500 border border-zinc-700 px-2 py-1 rounded-full">TRAVEL CARD</span>
         </div>
-      </GlassCard>
+        <div className="relative z-10">
+          <span className="text-zinc-400 text-sm font-medium">Total Spent</span>
+          <div className="text-4xl font-bold text-white font-mono tracking-tight mt-1">¥{total.toLocaleString()}</div>
+        </div>
+      </div>
 
-      {settlements.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="text-xs font-bold text-zinc-500 uppercase px-2">Settlements</h3>
-          {settlements.map((s, i) => (
-            <GlassCard key={i} className="p-4 flex justify-between items-center bg-zinc-900/40">
-              <div className="flex items-center gap-3 text-sm font-medium">
-                <span className="text-red-400">{s.from}</span>
-                <ArrowRight size={14} className="text-zinc-600"/>
-                <span className="text-green-400">{s.to}</span>
+      {/* Input Action */}
+      <div className="bg-[#1c1c1e] rounded-[20px] p-1 mb-6 flex items-center shadow-lg">
+        <button onClick={() => fileInputRef.current?.click()} className="p-3 bg-zinc-800 rounded-2xl text-zinc-400 hover:text-white transition-colors">
+          <ScanLine size={20} />
+        </button>
+        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleScan} />
+        
+        <input 
+          value={title} onChange={e => setTitle(e.target.value)} 
+          placeholder="Item" 
+          className="bg-transparent text-white px-3 py-2 outline-none w-full text-sm font-medium placeholder:text-zinc-600" 
+        />
+        <input 
+          value={amount} onChange={e => setAmount(e.target.value)} 
+          placeholder="¥0" type="number"
+          className="bg-transparent text-white px-2 py-2 outline-none w-24 text-sm font-mono placeholder:text-zinc-600" 
+        />
+        <button onClick={add} className="bg-blue-600 text-white p-3 rounded-2xl font-bold text-sm ml-1 hover:bg-blue-500 transition-colors">
+          Add
+        </button>
+      </div>
+
+      {/* Recent Transactions */}
+      <div className="space-y-1">
+        <h3 className="text-xs font-bold text-zinc-500 uppercase px-4 mb-2">Recent Activity</h3>
+        {expenses.slice().reverse().map((ex) => (
+          <div key={ex.id} className="flex justify-between items-center p-4 bg-[#1c1c1e]/50 border-b border-white/5 last:border-0 first:rounded-t-2xl last:rounded-b-2xl backdrop-blur-md">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-400">
+                {ex.payer.charAt(0)}
               </div>
-              <span className="font-mono text-white">¥{s.amount.toLocaleString()}</span>
-            </GlassCard>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-const TrafficTab = () => {
-  const [region, setRegion] = useState<'kyushu' | 'chugoku' | 'kansai'>('kyushu');
-  const [refreshKey, setRefreshKey] = useState(0);
-  const accounts = { kyushu: { id: 'iHighwayKyushu', name: '九州エリア' }, chugoku: { id: 'iHighwayChugoku', name: '中国エリア' }, kansai: { id: 'iHighwayKansai', name: '関西エリア' }, };
-  const handleRefresh = () => { setRefreshKey(prev => prev + 1); };
-  return (
-    <div className="pt-32 pb-32 px-4 h-full flex flex-col bg-black">
-      <GlassCard className="p-4 mb-4 flex justify-between items-center bg-gradient-to-br from-red-900/30 to-zinc-900 border-red-500/30">
-        <div><h2 className="text-lg font-bold text-red-500 flex items-center gap-2 mb-1"><AlertTriangle className="animate-pulse" size={20} /> Traffic Intel</h2><p className="text-xs text-zinc-400">NEXCO West Live</p></div>
-        <button onClick={handleRefresh} className="bg-zinc-800/50 p-2 rounded-full hover:bg-zinc-700 active:scale-95 transition-all text-zinc-400"><ScanLine size={18} /></button>
-      </GlassCard>
-      <GlassCard className="p-1 mb-4 flex gap-1">
-        {(Object.keys(accounts) as Array<keyof typeof accounts>).map((key) => (
-          <button key={key} onClick={() => { setRegion(key); setRefreshKey(prev => prev + 1); }} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${region === key ? 'bg-zinc-700 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>{accounts[key].name}</button>
+              <span className="text-sm font-medium text-white">{ex.title}</span>
+            </div>
+            <span className="text-sm font-mono text-zinc-300">- ¥{ex.amount.toLocaleString()}</span>
+          </div>
         ))}
-      </GlassCard>
-      <div className="flex-1 overflow-y-auto rounded-xl"><TwitterFeed key={`${region}-${refreshKey}`} id={accounts[region].id} /></div>
+      </div>
     </div>
   );
 };
 
-const SettingsTab = () => {
-  const { currentUser, expenses, resetAllData, refreshRouteData } = useNavStore();
-  const MenuLink = ({ icon: Icon, label, value, color = "bg-zinc-700", onClick, destructive }: any) => (
-    <div onClick={onClick} className="flex items-center justify-between p-4 bg-zinc-900/40 backdrop-blur-md active:bg-zinc-800 transition-colors cursor-pointer border-b border-white/5 last:border-0 first:rounded-t-2xl last:rounded-b-2xl">
+// --- Screen: Settings (iOS Settings Style) ---
+const SettingsScreen = () => {
+  const { currentUser, resetAllData } = useNavStore();
+  
+  const Cell = ({ label, value, icon: Icon, color, isDestructive, onClick }: any) => (
+    <div onClick={onClick} className="flex items-center justify-between p-4 bg-[#1c1c1e] active:bg-[#2c2c2e] transition-colors border-b border-white/5 last:border-0 cursor-pointer">
       <div className="flex items-center gap-3">
-        <div className={`w-7 h-7 rounded-lg ${color} flex items-center justify-center text-white shadow-sm`}>
-          <Icon size={14} />
+        <div className={`w-7 h-7 rounded-[6px] ${color} flex items-center justify-center text-white`}>
+          <Icon size={16} />
         </div>
-        <span className={`text-sm font-medium ${destructive ? 'text-red-500' : 'text-white'}`}>{label}</span>
+        <span className={`text-[17px] ${isDestructive ? 'text-red-500' : 'text-white'}`}>{label}</span>
       </div>
       <div className="flex items-center gap-2">
-        {value && <span className="text-sm text-zinc-500">{value}</span>}
-        <ChevronRight size={14} className="text-zinc-600" />
+        {value && <span className="text-[17px] text-zinc-500">{value}</span>}
+        <ChevronRight size={16} className="text-zinc-600" />
       </div>
     </div>
   );
 
   return (
-    <div className="pt-32 pb-32 px-4 min-h-screen bg-black">
-      <div className="mb-8 px-2">
-        <h2 className="text-3xl font-bold text-white tracking-tight">Settings</h2>
+    <div className="pt-28 pb-32 px-4 bg-black min-h-screen">
+      <IOSTitle>Settings</IOSTitle>
+      
+      <div className="rounded-[12px] overflow-hidden mb-6">
+        <Cell label="User Profile" value={currentUser} icon={User} color="bg-blue-500" />
+        <Cell label="Notifications" icon={Activity} color="bg-red-500" />
       </div>
 
-      <div className="space-y-6">
-        <div>
-          <h3 className="text-xs font-bold text-zinc-500 uppercase px-4 mb-2">Sync</h3>
-          <div className="rounded-2xl overflow-hidden">
-            <MenuLink icon={Activity} label="Refresh Route" color="bg-blue-500" onClick={() => { if(refreshRouteData){ refreshRouteData(); window.location.reload(); }}} />
-          </div>
-        </div>
-
-        <div>
-          <h3 className="text-xs font-bold text-zinc-500 uppercase px-4 mb-2">Profile</h3>
-          <div className="rounded-2xl overflow-hidden">
-            <MenuLink icon={User} label="Pilot Name" value={currentUser} color="bg-zinc-600" />
-            <MenuLink icon={Wallet} label="Records" value={`${expenses.length} recs`} color="bg-green-500" />
-          </div>
-        </div>
-
-        <div>
-          <h3 className="text-xs font-bold text-zinc-500 uppercase px-4 mb-2">Danger Zone</h3>
-          <div className="rounded-2xl overflow-hidden">
-            <MenuLink icon={Trash2} label="Reset All Data" color="bg-red-500" destructive onClick={() => { if(resetAllData && confirm('Reset?')) resetAllData(); }} />
-          </div>
-        </div>
+      <div className="rounded-[12px] overflow-hidden mb-6">
+        <Cell label="Traffic Data" icon={AlertTriangle} color="bg-green-500" />
+        <Cell label="Display" icon={Sun} color="bg-blue-600" />
       </div>
-      <div className="mt-12 text-center text-[10px] text-zinc-600 font-mono">
-        Designed by Apple Inspiration<br/>v3.0.1
+
+      <div className="rounded-[12px] overflow-hidden">
+        <Cell label="Reset All Data" icon={Trash2} color="bg-zinc-700" isDestructive onClick={() => { if(confirm('Reset?')) resetAllData(); }} />
       </div>
+      
+      <p className="text-center text-zinc-600 text-xs mt-8">Serena Navi Pro v3.0<br/>Designed in California Style</p>
     </div>
   );
 };
 
-// --- Bottom Navigation (Apple Style) ---
-const BottomNav = ({ active, onChange }: { active: string, onChange: (t: any) => void }) => {
-  const NavItem = ({ id, icon: Icon, label }: any) => {
-    const isActive = active === id;
-    return (
-      <button 
-        onClick={() => onChange(id)}
-        className={`flex flex-col items-center justify-center w-full h-full transition-all duration-300 ${isActive ? 'text-[#0A84FF]' : 'text-zinc-500 hover:text-zinc-300'}`}
-      >
-        <motion.div
-          animate={{ y: isActive ? -2 : 0 }}
-          transition={{ type: "spring", stiffness: 300, damping: 20 }}
-        >
-          <Icon size={24} strokeWidth={isActive ? 2.5 : 2} fill={isActive ? "currentColor" : "none"} className={isActive ? "opacity-100" : "opacity-80"} />
-        </motion.div>
-        <span className="text-[10px] font-medium mt-1 tracking-wide">{label}</span>
-      </button>
-    );
-  };
+// --- Bottom Dock (iPad Style) ---
+const Dock = ({ active, onChange }: { active: string, onChange: (v: any) => void }) => {
+  const items = [
+    { id: 'dashboard', icon: Activity },
+    { id: 'guide', icon: MapPin },
+    { id: 'traffic', icon: AlertTriangle },
+    { id: 'wallet', icon: Wallet },
+    { id: 'settings', icon: Settings },
+  ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 h-[88px] bg-black/80 backdrop-blur-xl border-t border-white/10 z-50 pb-safe">
-      <div className="flex justify-around items-center h-full max-w-md mx-auto px-2 pb-4">
-        <NavItem id="command" icon={Navigation} label="Command" />
-        <NavItem id="traffic" icon={AlertTriangle} label="Traffic" />
-        <NavItem id="wallet" icon={Wallet} label="Wallet" />
-        <NavItem id="guide" icon={Activity} label="Guide" />
-        <NavItem id="settings" icon={Settings} label="Settings" />
+    <div className="fixed bottom-6 left-0 right-0 flex justify-center z-50 pointer-events-none">
+      <div className="bg-[#1c1c1e]/80 backdrop-blur-2xl border border-white/10 rounded-full px-2 py-2 flex items-center gap-1 shadow-2xl pointer-events-auto">
+        {items.map((item) => {
+          const isActive = active === item.id;
+          return (
+            <motion.button
+              key={item.id}
+              onClick={() => onChange(item.id)}
+              whileTap={{ scale: 0.85 }}
+              animate={{ 
+                width: isActive ? 50 : 44, 
+                backgroundColor: isActive ? 'rgba(255,255,255,0.15)' : 'transparent',
+              }}
+              className="h-11 rounded-full flex items-center justify-center text-white relative"
+            >
+              <item.icon 
+                size={22} 
+                strokeWidth={isActive ? 2.5 : 2}
+                className={isActive ? 'text-white' : 'text-zinc-400'} 
+              />
+              {isActive && <motion.div layoutId="active-dot" className="absolute -bottom-1 w-1 h-1 bg-white rounded-full" />}
+            </motion.button>
+          );
+        })}
       </div>
     </div>
   );
 };
 
-// --- Main Component ---
+// --- Main Page Component ---
 export const CoPilotPage: React.FC = () => {
-  const { sendNotification, currentUser } = useNavStore();
-  const [activeTab, setActiveTab] = useState<'command' | 'wallet' | 'guide' | 'traffic' | 'settings'>('command');
+  const [activeTab, setActiveTab] = useState('dashboard');
 
-  const handleSend = (type: 'rest' | 'music' | 'info', msg: string) => {
-    sendNotification({ id: crypto.randomUUID(), type, message: msg, sender: currentUser || "Co-Pilot" });
-  };
+  // Traffic Tab Wrapper
+  const TrafficScreen = () => (
+    <div className="pt-28 pb-32 px-4 bg-black min-h-screen">
+      <IOSTitle>Traffic Intel</IOSTitle>
+      <div className="h-[60vh] bg-[#1c1c1e] rounded-[24px] overflow-hidden border border-white/5">
+        <TwitterFeed id="iHighwayKyushu" />
+      </div>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-black text-white font-sans selection:bg-blue-500/30">
-      <TelemetryHeader />
-
-      <main className="min-h-screen">
+    <div className="bg-black min-h-screen text-white font-sans selection:bg-blue-500/30">
+      <DynamicHeader />
+      
+      <main>
         <AnimatePresence mode="wait">
-          {activeTab === 'command' && (
-            <motion.div key="command" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pt-32 pb-32 px-4">
-              <div className="mb-6"><DJPanel /></div>
-              <JudgePanel />
-              <h2 className="text-xs font-bold text-zinc-500 uppercase mb-3 px-1 mt-8">Quick Actions</h2>
-              <div className="grid grid-cols-2 gap-3">
-                <GlassCard className="p-4 flex flex-col items-center gap-2 active:scale-95 transition-transform" >
-                  <button onClick={() => handleSend('rest', 'トイレ行きたい')} className="w-full h-full flex flex-col items-center"><Coffee className="text-orange-400 mb-1" size={24} /> <span className="text-xs font-bold">Rest</span></button>
-                </GlassCard>
-                <GlassCard className="p-4 flex flex-col items-center gap-2 active:scale-95 transition-transform">
-                  <button onClick={() => handleSend('info', 'コンビニ寄りたい')} className="w-full h-full flex flex-col items-center"><Wallet className="text-blue-400 mb-1" size={24} /> <span className="text-xs font-bold">Store</span></button>
-                </GlassCard>
-              </div>
-            </motion.div>
-          )}
-
-          {activeTab === 'wallet' && <motion.div key="wallet" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><WalletTab /></motion.div>}
-          {activeTab === 'guide' && <motion.div key="guide" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><GuideTab /></motion.div>}
-          {activeTab === 'traffic' && <motion.div key="traffic" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><TrafficTab /></motion.div>}
-          {activeTab === 'settings' && <motion.div key="settings" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><SettingsTab /></motion.div>}
+          {activeTab === 'dashboard' && <motion.div key="dash" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><DashboardScreen /></motion.div>}
+          {activeTab === 'guide' && <motion.div key="guide" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><GuideScreen /></motion.div>}
+          {activeTab === 'wallet' && <motion.div key="wallet" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><WalletScreen /></motion.div>}
+          {activeTab === 'traffic' && <motion.div key="traffic" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><TrafficScreen /></motion.div>}
+          {activeTab === 'settings' && <motion.div key="settings" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><SettingsScreen /></motion.div>}
         </AnimatePresence>
       </main>
 
-      <BottomNav active={activeTab} onChange={setActiveTab} />
+      <Dock active={activeTab} onChange={setActiveTab} />
     </div>
   );
 };
