@@ -1,17 +1,27 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { useNavStore } from '../store/useNavStore';
 import { 
-  Coffee, Music, MapPin, Navigation, ArrowRight, 
+  Music, MapPin, Navigation, ArrowRight, 
   Wallet, Activity, AlertTriangle, ScanLine, 
   Clock, Radio, Loader2,
   Play, Pause, SkipForward, LogIn,
   CheckCircle2, CarFront, UtensilsCrossed, Cigarette, Droplets, ShoppingBag,
-  Settings, ChevronRight, User, Bell, Trash2, Info,
-  Sun, Cloud, CloudRain, Snowflake, Moon, Gavel, ShieldCheck, Gauge, ChevronDown, ChevronUp
+  Settings, ChevronRight, User, Trash2,
+  Sun, Cloud, CloudRain, Snowflake, 
+  Gavel, ChevronUp, Coffee
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSpotify } from '../hooks/useSpotify';
 import { TwitterFeed } from '../components/widgets/TwitterFeed';
+
+// --- Shared Components ---
+
+// Apple-style Glass Card
+const GlassCard = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
+  <div className={`bg-zinc-900/60 backdrop-blur-xl border border-white/5 rounded-[20px] shadow-sm ${className}`}>
+    {children}
+  </div>
+);
 
 // --- Telemetry Header ---
 const TelemetryHeader = () => {
@@ -19,56 +29,46 @@ const TelemetryHeader = () => {
   const nextPoint = waypoints.find(w => 
     w.type === 'sightseeing' || w.type === 'parking' || w.type === 'hotel'
   ) || waypoints[1];
-  const weather = nextPoint?.weather || { type: 'sunny', temp: '24°C' };
+  const weather = nextPoint?.weather || { type: 'sunny', temp: '--' };
+  
   const WeatherIcon = () => {
     switch (weather.type) {
-      case 'rain': return <CloudRain size={14} className="text-blue-400" />;
-      case 'cloudy': return <Cloud size={14} className="text-gray-400" />;
-      case 'snow': return <Snowflake size={14} className="text-white" />;
-      default: return <Sun size={14} className="text-orange-500" />;
+      case 'rain': return <CloudRain size={16} className="text-blue-400 drop-shadow-[0_0_8px_rgba(96,165,250,0.5)]" />;
+      case 'cloudy': return <Cloud size={16} className="text-gray-400" />;
+      case 'snow': return <Snowflake size={16} className="text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" />;
+      default: return <Sun size={16} className="text-orange-400 drop-shadow-[0_0_8px_rgba(251,146,60,0.5)]" />;
     }
   };
-  const scheduled = nextPoint?.scheduledTime || "--:--";
   
   return (
-    <div className="bg-zinc-900 border-b border-zinc-800 p-4 sticky top-0 z-30 backdrop-blur-xl bg-opacity-80">
-      <div className="flex justify-between items-end mb-2">
+    <div className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-xl border-b border-white/5 pt-safe-top pb-3 px-4 transition-all duration-500">
+      <div className="flex justify-between items-end mb-3">
         <div>
-          <div className="text-[10px] text-zinc-500 uppercase tracking-widest flex items-center gap-1">
-            <MapPin size={10} /> CURRENT LOCATION
+          <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest flex items-center gap-1.5 mb-0.5">
+            <MapPin size={10} /> Location
           </div>
-          <div className="text-sm font-bold text-white truncate max-w-[200px]">{currentAreaText}</div>
+          <div className="text-base font-bold text-white tracking-tight">{currentAreaText}</div>
         </div>
         <div className="text-right">
-          <div className="text-[10px] text-zinc-500 uppercase tracking-widest">SPEED</div>
-          <div className="text-2xl font-black text-white font-mono leading-none">
-            {currentSpeed} <span className="text-xs font-normal text-zinc-600">km/h</span>
+          <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-0.5">Ground Speed</div>
+          <div className="text-3xl font-bold text-white font-mono leading-none tracking-tighter">
+            {currentSpeed} <span className="text-xs font-medium text-zinc-600 tracking-normal">km/h</span>
           </div>
         </div>
       </div>
-      <div className="flex items-center gap-4 bg-black/40 rounded-lg p-2 border border-zinc-800/50">
-        <div className="flex-1 flex items-center gap-2 border-r border-zinc-800">
+      
+      <div className="grid grid-cols-3 gap-2">
+        <div className="bg-zinc-800/50 rounded-lg p-2 flex items-center justify-center gap-2 border border-white/5">
           <Clock size={14} className="text-blue-500" />
-          <div>
-            <div className="text-[9px] text-zinc-500 uppercase">PLAN / ETA</div>
-            <div className="text-xs font-bold font-mono text-zinc-200">
-              {scheduled} <span className="text-zinc-600">/</span> {nextWaypointEta}
-            </div>
-          </div>
+          <div className="text-xs font-bold font-mono text-zinc-200">{nextWaypointEta}</div>
         </div>
-        <div className="flex-1 flex items-center gap-2 border-r border-zinc-800">
+        <div className="bg-zinc-800/50 rounded-lg p-2 flex items-center justify-center gap-2 border border-white/5">
           <WeatherIcon />
-          <div>
-            <div className="text-[9px] text-zinc-500 uppercase">WEATHER</div>
-            <div className="text-xs font-bold font-mono text-zinc-200">{weather.temp}</div>
-          </div>
+          <div className="text-xs font-bold font-mono text-zinc-200">{weather.temp}</div>
         </div>
-        <div className="flex-1 flex items-center gap-2">
+        <div className="bg-zinc-800/50 rounded-lg p-2 flex items-center justify-center gap-2 border border-white/5">
           <Radio size={14} className={activeNotification ? "text-green-500 animate-pulse" : "text-zinc-600"} />
-          <div>
-            <div className="text-[9px] text-zinc-500 uppercase">LINK</div>
-            <div className="text-xs font-bold text-zinc-200">{activeNotification ? "ACTIVE" : "READY"}</div>
-          </div>
+          <div className="text-xs font-bold text-zinc-200">{activeNotification ? "LINKED" : "READY"}</div>
         </div>
       </div>
     </div>
@@ -78,50 +78,75 @@ const TelemetryHeader = () => {
 // --- DJ Panel ---
 const DJPanel = () => {
   const { token, track, isPlaying, handleLogin, handleNext, handlePlayPause } = useSpotify();
+  
   if (!token) {
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 text-center">
-        <div className="w-16 h-16 bg-[#1DB954] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-green-900/50">
-          <Music className="text-black" size={32} />
+      <GlassCard className="p-6 text-center">
+        <div className="w-14 h-14 bg-[#1DB954] rounded-full flex items-center justify-center mx-auto mb-4 shadow-[0_4px_20px_rgba(29,185,84,0.3)]">
+          <Music className="text-black" size={28} />
         </div>
-        <h3 className="text-white font-bold mb-2">Connect to Car Audio</h3>
-        <p className="text-zinc-500 text-xs mb-4">Spotifyと連携してDJを始めよう</p>
-        <button onClick={handleLogin} className="bg-[#1DB954] hover:bg-[#1ed760] text-black font-bold py-3 px-6 rounded-full flex items-center justify-center gap-2 mx-auto transition-all active:scale-95">
-          <LogIn size={18} /> Login with Spotify
+        <h3 className="text-white font-bold mb-1">Apple CarPlay Style</h3>
+        <p className="text-zinc-500 text-xs mb-4">Connect Spotify for sync.</p>
+        <button onClick={handleLogin} className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
+          <LogIn size={18} /> Connect
         </button>
-      </div>
+      </GlassCard>
     );
   }
+
   return (
-    <div className="space-y-4">
-      <div className="bg-gradient-to-r from-green-900/40 to-zinc-900/40 border border-[#1DB954]/30 rounded-2xl p-4 relative overflow-hidden">
-        {track ? (
-          <div className="flex items-center gap-4 relative z-10">
-            <img src={track.album.images[0]?.url} alt="Album Art" className={`w-20 h-20 rounded-xl shadow-xl ${isPlaying ? 'animate-pulse' : 'grayscale opacity-70'}`} />
-            <div className="flex-1 min-w-0">
-              <div className="text-[10px] text-[#1DB954] font-bold uppercase tracking-wider mb-1 flex items-center gap-1"><Music size={10} /> SPOTIFY LINKED</div>
-              <h3 className="text-lg font-bold text-white leading-tight truncate">{track.name}</h3>
-              <p className="text-sm text-zinc-400 truncate">{track.artists.map((a:any) => a.name).join(', ')}</p>
+    <GlassCard className="p-0 overflow-hidden relative group">
+      {/* Background Blur Image */}
+      {track && (
+        <div 
+          className="absolute inset-0 bg-cover bg-center opacity-20 blur-2xl scale-110 transition-all duration-1000"
+          style={{ backgroundImage: `url(${track.album.images[0]?.url})` }}
+        />
+      )}
+      
+      <div className="p-5 relative z-10">
+        <div className="flex items-center gap-4">
+          <motion.div 
+            animate={{ scale: isPlaying ? 1.05 : 1 }}
+            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            className="relative"
+          >
+            <img 
+              src={track?.album.images[0]?.url} 
+              alt="Art" 
+              className="w-20 h-20 rounded-xl shadow-2xl object-cover"
+            />
+            <div className="absolute -bottom-2 -right-2 bg-black/80 rounded-full p-1.5 border border-white/10">
+              <Music size={10} className="text-[#1DB954]" />
             </div>
+          </motion.div>
+          
+          <div className="flex-1 min-w-0">
+            <h3 className="text-lg font-bold text-white leading-tight truncate">{track?.name || "Not Playing"}</h3>
+            <p className="text-sm text-zinc-400 truncate mt-0.5">{track?.artists.map((a:any) => a.name).join(', ')}</p>
           </div>
-        ) : (
-          <div className="flex items-center justify-center h-20 text-zinc-500 text-sm">停止中または広告再生中...</div>
-        )}
-        <div className="flex justify-around items-center mt-4 border-t border-white/10 pt-3">
-          <button onClick={handlePlayPause} className="p-3 text-white hover:text-[#1DB954] transition-colors">{isPlaying ? <Pause size={28} /> : <Play size={28} />}</button>
-          <button onClick={handleNext} className="p-3 text-white hover:text-[#1DB954] transition-colors active:scale-90"><SkipForward size={28} /></button>
+        </div>
+
+        <div className="flex justify-between items-center mt-6 px-4">
+          <button onClick={handlePlayPause} className="text-white hover:text-zinc-300 transition-colors">
+            {isPlaying ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" />}
+          </button>
+          <button onClick={handleNext} className="text-white hover:text-zinc-300 transition-colors active:scale-90">
+            <SkipForward size={32} fill="currentColor" />
+          </button>
         </div>
       </div>
-    </div>
+    </GlassCard>
   );
 };
 
-// --- Judge Panel ---
+// --- Judge Panel (Revived & Restyled) ---
 const JudgePanel = () => {
   const [result, setResult] = useState<string | null>(null);
   const [isSpinning, setIsSpinning] = useState(false);
   const [mode, setMode] = useState<'PAY' | 'DRIVE' | null>(null);
   const members = ['Naoto', 'Taira', 'Haga'];
+
   const handleSpin = (selectedMode: 'PAY' | 'DRIVE') => {
     if (isSpinning) return;
     setMode(selectedMode);
@@ -134,22 +159,265 @@ const JudgePanel = () => {
       if (count > 15) { clearInterval(interval); setIsSpinning(false); setResult(members[Math.floor(Math.random() * members.length)]); }
     }, 100);
   };
+
   return (
-    <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl mb-6 relative overflow-hidden">
+    <GlassCard className="p-4 mt-6">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xs font-bold text-zinc-500 uppercase flex items-center gap-2"><Gavel size={14} /> THE JUDGE {mode ? `- ${mode}` : ''}</h3>
-        <div className={`text-xl font-black font-mono tracking-wider ${isSpinning ? 'text-zinc-500 animate-pulse' : 'text-yellow-400'}`}>{result || "READY"}</div>
+        <h3 className="text-xs font-bold text-zinc-500 uppercase flex items-center gap-2">
+          <Gavel size={14} /> The Judge {mode ? `- ${mode}` : ''}
+        </h3>
+        <div className={`text-xl font-black font-mono tracking-wider ${isSpinning ? 'text-zinc-500 animate-pulse' : 'text-[#FFD60A]'}`}>
+          {result || "READY"}
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <button onClick={() => handleSpin('PAY')} disabled={isSpinning} className="bg-zinc-800 hover:bg-red-900/30 border border-zinc-700 hover:border-red-500 text-zinc-300 hover:text-red-400 p-3 rounded-lg font-bold text-xs transition-all active:scale-95 flex flex-col items-center gap-1 group"><Wallet size={18} className="group-hover:animate-bounce" />WHO PAYS?</button>
-        <button onClick={() => handleSpin('DRIVE')} disabled={isSpinning} className="bg-zinc-800 hover:bg-blue-900/30 border border-zinc-700 hover:border-blue-500 text-zinc-300 hover:text-blue-400 p-3 rounded-lg font-bold text-xs transition-all active:scale-95 flex flex-col items-center gap-1 group"><CarFront size={18} className="group-hover:animate-bounce" />NEXT DRIVER?</button>
+        <button onClick={() => handleSpin('PAY')} disabled={isSpinning} className="bg-zinc-800/50 hover:bg-red-900/30 border border-white/5 hover:border-red-500 text-zinc-300 hover:text-red-400 p-3 rounded-xl font-bold text-xs transition-all active:scale-[0.98] flex flex-col items-center gap-1 group">
+          <Wallet size={20} className="group-hover:animate-bounce mb-1" />
+          Who Pays?
+        </button>
+        <button onClick={() => handleSpin('DRIVE')} disabled={isSpinning} className="bg-zinc-800/50 hover:bg-blue-900/30 border border-white/5 hover:border-blue-500 text-zinc-300 hover:text-blue-400 p-3 rounded-xl font-bold text-xs transition-all active:scale-[0.98] flex flex-col items-center gap-1 group">
+          <CarFront size={20} className="group-hover:animate-bounce mb-1" />
+          Next Driver?
+        </button>
       </div>
-      {!isSpinning && result && <div className="absolute inset-0 border-2 border-yellow-500/50 rounded-xl animate-pulse pointer-events-none" />}
+    </GlassCard>
+  );
+};
+
+// --- Guide Tab (Apple Maps Level) ---
+const GuideTab = () => {
+  // ★修正: nextWaypoint から安全にIDを取得
+  const { waypoints, nextWaypoint } = useNavStore();
+  const nextWaypointId = nextWaypoint?.id;
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const dayHeaders: Record<string, string> = {
+    'start': 'Day 0',
+    'ise_jingu': 'Day 1',
+    'metasequoia': 'Day 2',
+    'hiroshima_okonomi': 'Day 3'
+  };
+  
+  const daySubHeaders: Record<string, string> = {
+    'start': 'Departure Night',
+    'ise_jingu': 'Mie & Matsusaka',
+    'metasequoia': 'Shiga & Kobe',
+    'hiroshima_okonomi': 'The Return'
+  };
+
+  const toggleExpand = (id: string) => {
+    setExpandedId(expandedId === id ? null : id);
+  };
+
+  // 現在の進捗indexを取得
+  const activeIndex = waypoints.findIndex(w => w.id === nextWaypointId);
+
+  return (
+    <div className="pt-32 pb-32 px-0 min-h-screen bg-black">
+      <div className="relative">
+        
+        {/* Timeline Line (Dynamic) */}
+        <div className="absolute left-[39px] top-0 bottom-0 w-[2px] bg-zinc-800 rounded-full" />
+        {/* Progress Line (Blue) */}
+        <motion.div 
+          initial={{ height: 0 }}
+          animate={{ height: `${(Math.max(0, activeIndex) / waypoints.length) * 100}%` }}
+          className="absolute left-[39px] top-0 w-[2px] bg-[#0A84FF] rounded-full z-0 shadow-[0_0_10px_#0A84FF]"
+        />
+
+        {waypoints.map((spot, index) => {
+          const isNext = spot.id === nextWaypointId;
+          const isPast = index < activeIndex;
+          const isExpanded = expandedId === spot.id;
+          const dayHeader = dayHeaders[spot.id];
+          
+          return (
+            <React.Fragment key={spot.id}>
+              {/* Sticky Header with Blur */}
+              {dayHeader && (
+                <div className="sticky top-[130px] z-30 mb-6 mt-8 first:mt-0">
+                  <div className="absolute inset-0 bg-black/80 backdrop-blur-xl border-y border-white/5" />
+                  <div className="relative px-6 py-3 flex justify-between items-baseline">
+                    <h2 className="text-2xl font-bold text-white tracking-tight">{dayHeader}</h2>
+                    <span className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">{daySubHeaders[spot.id]}</span>
+                  </div>
+                </div>
+              )}
+
+              <motion.div 
+                layout 
+                className="relative pl-20 pr-4 py-3 group"
+              >
+                {/* Time Stamp (Left) */}
+                <div className="absolute left-4 top-[18px] w-10 text-right">
+                  <span className={`text-[11px] font-mono font-bold tracking-tight ${isNext ? 'text-[#0A84FF]' : isPast ? 'text-zinc-600' : 'text-zinc-400'}`}>
+                    {spot.scheduledTime}
+                  </span>
+                </div>
+
+                {/* Timeline Node (The Dot) */}
+                <div 
+                  onClick={() => toggleExpand(spot.id)}
+                  className="absolute left-[34px] top-[20px] z-10 cursor-pointer"
+                >
+                  <motion.div 
+                    animate={{ 
+                      scale: isNext ? 1.2 : 1,
+                      backgroundColor: isNext ? '#0A84FF' : isPast ? '#27272a' : '#52525b',
+                      borderColor: isNext ? 'rgba(10, 132, 255, 0.3)' : '#000'
+                    }}
+                    className={`w-3 h-3 rounded-full border-[3px] box-content shadow-lg transition-colors duration-500`}
+                  />
+                  {/* Pulse Effect for Next Waypoint */}
+                  {isNext && (
+                    <motion.div 
+                      animate={{ scale: [1, 2.5], opacity: [0.5, 0] }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
+                      className="absolute inset-0 bg-[#0A84FF] rounded-full -z-10"
+                    />
+                  )}
+                </div>
+
+                {/* Card Content */}
+                <motion.div 
+                  layout
+                  onClick={() => toggleExpand(spot.id)}
+                  className={`relative overflow-hidden rounded-[18px] cursor-pointer border transition-all duration-300 ${
+                    isExpanded 
+                      ? 'bg-zinc-900 border-zinc-700 shadow-2xl z-20' 
+                      : 'bg-transparent border-transparent hover:bg-zinc-900/30'
+                  }`}
+                >
+                  <div className="p-3">
+                    <div className="flex justify-between items-center">
+                      <h4 className={`text-[17px] font-semibold tracking-tight transition-colors ${isNext || isExpanded ? 'text-white' : 'text-zinc-400'}`}>
+                        {spot.name}
+                      </h4>
+                      {isExpanded && (
+                        <button className="bg-zinc-800 rounded-full p-1 text-zinc-400">
+                          <ChevronUp size={16} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Collapsed Badges */}
+                    {!isExpanded && (
+                      <div className="flex items-center gap-3 mt-1 pl-0.5">
+                        {spot.type === 'hotel' && <span className="text-[10px] text-zinc-500 font-medium">Hotel</span>}
+                        {spot.quests && spot.quests.length > 0 && <span className="text-[10px] text-[#0A84FF] font-medium flex items-center gap-1"><CheckCircle2 size={10}/> {spot.quests.length}</span>}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Expanded Content Area */}
+                  <AnimatePresence>
+                    {isExpanded && (
+                      <motion.div 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                      >
+                        {/* Hero Image */}
+                        {spot.image && (
+                          <div className="h-40 w-full relative mt-1">
+                            <img src={spot.image} alt="Location" className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 to-transparent" />
+                            <div className="absolute bottom-3 left-4 right-4">
+                              <p className="text-sm font-medium text-white/90 leading-snug drop-shadow-md">{spot.description}</p>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {!spot.image && spot.description && (
+                          <div className="px-4 pb-2">
+                            <p className="text-sm text-zinc-400 leading-relaxed border-l-2 border-zinc-700 pl-3">{spot.description}</p>
+                          </div>
+                        )}
+
+                        {/* Action Grid */}
+                        <div className="p-4 space-y-4">
+                          {/* 1. Missions */}
+                          {spot.quests && (
+                            <div className="bg-black/40 rounded-xl p-3 border border-white/5">
+                              <h5 className="text-[10px] font-bold text-zinc-500 uppercase mb-2 flex items-center gap-1">
+                                <CheckCircle2 size={10} /> Mission Objectives
+                              </h5>
+                              <ul className="space-y-2">
+                                {spot.quests.map((q, i) => (
+                                  <li key={i} className="flex items-start gap-2 text-xs font-medium text-zinc-300">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[#0A84FF] mt-1.5 shrink-0 shadow-[0_0_5px_#0A84FF]" />
+                                    {q}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {/* 2. Info Columns */}
+                          <div className="grid grid-cols-2 gap-3">
+                            {spot.driverIntel && (
+                              <div className="bg-blue-500/10 rounded-xl p-3 border border-blue-500/20">
+                                <h5 className="text-[10px] font-bold text-blue-400 uppercase mb-1 flex items-center gap-1">
+                                  <CarFront size={12} /> Driver
+                                </h5>
+                                <p className="text-[11px] text-blue-100/80 leading-snug">{spot.driverIntel.parking}</p>
+                              </div>
+                            )}
+                            
+                            {spot.gourmet && (
+                              <div className="bg-orange-500/10 rounded-xl p-3 border border-orange-500/20">
+                                <h5 className="text-[10px] font-bold text-orange-400 uppercase mb-1 flex items-center gap-1">
+                                  <UtensilsCrossed size={12} /> Eat
+                                </h5>
+                                <div className="text-[11px] font-bold text-orange-100">{spot.gourmet.item}</div>
+                                <div className="text-[10px] text-orange-200/60 mt-0.5">{spot.gourmet.price}</div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* 3. Facilities */}
+                          {spot.specs && (
+                            <div className="flex items-center gap-3 py-2 border-t border-white/5">
+                              <div className={`flex items-center gap-1.5 text-[10px] font-bold ${spot.specs.toilet === 'clean' ? 'text-blue-400' : 'text-zinc-500'}`}>
+                                <Droplets size={12} /> {spot.specs.toilet === 'clean' ? 'CLEAN WC' : 'WC'}
+                              </div>
+                              <div className={`flex items-center gap-1.5 text-[10px] font-bold ${spot.specs.smoking ? 'text-zinc-400' : 'text-zinc-700 line-through'}`}>
+                                <Cigarette size={12} /> SMOKE
+                              </div>
+                              <div className={`flex items-center gap-1.5 text-[10px] font-bold ${spot.specs.vending ? 'text-green-400' : 'text-zinc-700'}`}>
+                                <ShoppingBag size={12} /> SHOP
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 4. Action Button */}
+                          <a 
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(spot.name)}`}
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex items-center justify-center gap-2 w-full py-3.5 bg-[#007AFF] hover:bg-[#0062cc] active:scale-[0.98] rounded-xl text-xs font-bold text-white shadow-lg shadow-blue-900/30 transition-all"
+                          >
+                            <MapPin size={14} /> 
+                            Open in Maps
+                          </a>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              </motion.div>
+            </React.Fragment>
+          );
+        })}
+      </div>
     </div>
   );
 };
 
-// --- Wallet Tab ---
+// --- Wallet & Settings & Traffic ---
+
 const WalletTab = () => {
   const { expenses, addExpense } = useNavStore();
   const [title, setTitle] = useState('');
@@ -158,6 +426,7 @@ const WalletTab = () => {
   const [isScanning, setIsScanning] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const members = ['Naoto', 'Taira', 'Haga'];
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -174,6 +443,7 @@ const WalletTab = () => {
       reader.readAsDataURL(file);
     } catch (error) { console.error(error); setIsScanning(false); alert('スキャンエラー'); }
   };
+
   const { total, settlements } = useMemo(() => {
     const totalCalc = expenses.reduce((sum, item) => sum + item.amount, 0);
     const perPerson = totalCalc > 0 ? Math.ceil(totalCalc / members.length) : 0;
@@ -194,36 +464,47 @@ const WalletTab = () => {
     }
     return { total: totalCalc, settlements: results };
   }, [expenses]);
+
   const handleSubmit = () => { if (!title || !amount) return; addExpense(title, parseInt(amount), payer); setTitle(''); setAmount(''); };
+
   return (
-    <div className="space-y-6 pb-24 px-4">
-      <div className="bg-gradient-to-br from-green-900/50 to-zinc-900 border border-green-500/30 p-6 rounded-2xl relative overflow-hidden shadow-lg">
-        <div className="relative z-10"><div className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Total Budget</div><div className="text-4xl font-bold text-white font-mono">¥{total.toLocaleString()}</div></div>
-        <Wallet className="absolute -right-4 -bottom-4 text-green-500/10 w-32 h-32" />
-      </div>
-      <div className="bg-zinc-900/80 p-4 rounded-2xl border border-zinc-800 relative overflow-hidden">
-        {isScanning && <div className="absolute inset-0 bg-black/80 z-20 flex flex-col items-center justify-center backdrop-blur-sm"><Loader2 className="animate-spin text-green-500 mb-2" size={32} /><span className="text-xs font-bold text-green-400 animate-pulse">AI ANALYZING...</span></div>}
-        <div className="space-y-3">
-          <div className="flex gap-2">
-            <input type="text" placeholder="品目 (例: ガソリン)" value={title} onChange={e => setTitle(e.target.value)} className="flex-1 bg-black/50 border border-zinc-700 rounded-xl p-3 text-white focus:border-green-500 outline-none" />
-            <input type="file" ref={fileInputRef} accept="image/*" capture="environment" onChange={handleFileChange} className="hidden" />
-            <button onClick={() => fileInputRef.current?.click()} className="bg-zinc-800 hover:bg-zinc-700 text-green-400 border border-zinc-700 rounded-xl w-12 flex items-center justify-center transition-colors"><ScanLine size={20} /></button>
+    <div className="pt-32 pb-32 px-4 min-h-screen bg-black">
+      <GlassCard className="p-6 mb-6 bg-gradient-to-br from-green-900/40 to-zinc-900/60 border-green-500/20">
+        <div className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Total Budget</div>
+        <div className="text-5xl font-thin font-mono text-white tracking-tighter">¥{total.toLocaleString()}</div>
+      </GlassCard>
+
+      <GlassCard className="p-4 mb-6">
+        {isScanning && <div className="absolute inset-0 bg-black/80 z-20 flex flex-col items-center justify-center backdrop-blur-sm rounded-[20px]"><Loader2 className="animate-spin text-green-500 mb-2" size={32} /><span className="text-xs font-bold text-green-400 animate-pulse">Scanning...</span></div>}
+        <div className="space-y-4">
+          <div className="flex gap-3 items-center border-b border-white/5 pb-2">
+            <input type="text" placeholder="Description" value={title} onChange={e => setTitle(e.target.value)} className="flex-1 bg-transparent text-white outline-none placeholder:text-zinc-600" />
+            <button onClick={() => fileInputRef.current?.click()} className="text-zinc-400 hover:text-white transition-colors"><ScanLine size={20}/></button>
+            <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
           </div>
-          <div className="flex gap-3">
-            <input type="number" placeholder="金額" value={amount} onChange={e => setAmount(e.target.value)} className="flex-1 bg-black/50 border border-zinc-700 rounded-xl p-3 text-white font-mono focus:border-green-500 outline-none" />
-            <select value={payer} onChange={e => setPayer(e.target.value)} className="w-1/3 bg-black/50 border border-zinc-700 rounded-xl p-3 text-white outline-none">{members.map(m => <option key={m} value={m}>{m}</option>)}</select>
+          <div className="flex gap-3 items-center border-b border-white/5 pb-2">
+            <span className="text-zinc-500">¥</span>
+            <input type="number" placeholder="0" value={amount} onChange={e => setAmount(e.target.value)} className="flex-1 bg-transparent text-white font-mono text-lg outline-none placeholder:text-zinc-600" />
+            <select value={payer} onChange={e => setPayer(e.target.value)} className="bg-transparent text-blue-400 font-bold outline-none text-right">
+              {members.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
           </div>
-          <button onClick={handleSubmit} className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl transition-all active:scale-95">Add Expense</button>
+          <button onClick={handleSubmit} className="w-full bg-white text-black font-bold py-3 rounded-xl active:scale-[0.98] transition-transform">Add Expense</button>
         </div>
-      </div>
+      </GlassCard>
+
       {settlements.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-xs font-bold text-zinc-500 uppercase px-1">Settlement Plan</h3>
+        <div className="space-y-3">
+          <h3 className="text-xs font-bold text-zinc-500 uppercase px-2">Settlements</h3>
           {settlements.map((s, i) => (
-            <div key={i} className="flex items-center justify-between bg-zinc-800/40 p-3 rounded-xl border border-zinc-700/50">
-              <div className="flex items-center gap-2 text-sm"><span className="font-bold text-red-400">{s.from}</span><ArrowRight size={12} className="text-zinc-600" /><span className="font-bold text-green-400">{s.to}</span></div>
-              <span className="font-mono font-bold text-white text-sm">¥{s.amount.toLocaleString()}</span>
-            </div>
+            <GlassCard key={i} className="p-4 flex justify-between items-center bg-zinc-900/40">
+              <div className="flex items-center gap-3 text-sm font-medium">
+                <span className="text-red-400">{s.from}</span>
+                <ArrowRight size={14} className="text-zinc-600"/>
+                <span className="text-green-400">{s.to}</span>
+              </div>
+              <span className="font-mono text-white">¥{s.amount.toLocaleString()}</span>
+            </GlassCard>
           ))}
         </div>
       )}
@@ -231,268 +512,116 @@ const WalletTab = () => {
   );
 };
 
-// --- ★ Guide Tab (Apple Style Timeline Edition) ---
-const GuideTab = () => {
-  // ★修正: nextWaypoint からIDを取得するように変更
-  const { waypoints, nextWaypoint } = useNavStore();
-  const nextWaypointId = nextWaypoint?.id; 
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  const dayHeaders: Record<string, string> = {
-    'start': 'DAY 0',
-    'ise_jingu': 'DAY 1',
-    'metasequoia': 'DAY 2',
-    'hiroshima_okonomi': 'DAY 3'
-  };
-  const daySubHeaders: Record<string, string> = {
-    'start': 'NIGHT CRUISE',
-    'ise_jingu': 'MIE / GOD & BEEF',
-    'metasequoia': 'SHIGA & KOBE',
-    'hiroshima_okonomi': 'THE RETURN'
-  };
-
-  const toggleExpand = (id: string) => {
-    setExpandedId(expandedId === id ? null : id);
-  };
-
-  return (
-    <div className="pb-24 pt-4 px-0 bg-black min-h-full">
-      <div className="relative pb-10">
-        {/* 左側のタイムライン線 */}
-        <div className="absolute left-[33px] top-0 bottom-0 w-[2px] bg-zinc-800" />
-
-        {waypoints.map((spot, index) => {
-          const isNext = spot.id === nextWaypointId;
-          const isPast = index < waypoints.findIndex(w => w.id === nextWaypointId);
-          const isExpanded = expandedId === spot.id;
-          const dayHeader = dayHeaders[spot.id];
-          
-          return (
-            <React.Fragment key={spot.id}>
-              {/* 日付ヘッダー (Sticky) */}
-              {dayHeader && (
-                <div className="sticky top-0 z-20 bg-black/90 backdrop-blur-xl border-b border-zinc-800 py-3 px-6 mb-2 mt-6 first:mt-0 flex justify-between items-baseline shadow-lg">
-                  <h3 className="text-xl font-bold text-white tracking-tight">{dayHeader}</h3>
-                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{daySubHeaders[spot.id]}</span>
-                </div>
-              )}
-
-              {/* リストアイテム */}
-              <div className="relative pl-20 pr-4 py-4 group">
-                {/* 左側の時間表示 */}
-                <div className="absolute left-3 top-5 w-12 text-right">
-                  <span className={`text-[10px] font-mono font-bold ${isNext ? 'text-blue-400' : 'text-zinc-500'}`}>
-                    {spot.scheduledTime || '--:--'}
-                  </span>
-                </div>
-
-                {/* タイムライン上のドット */}
-                <div 
-                  onClick={() => toggleExpand(spot.id)}
-                  className={`absolute left-[29px] top-6 w-2.5 h-2.5 rounded-full z-10 cursor-pointer transition-all duration-300 ${
-                    isNext ? 'bg-blue-500 ring-4 ring-blue-500/20 scale-125' : 
-                    isPast ? 'bg-zinc-800 ring-2 ring-black' : 
-                    'bg-zinc-500 ring-2 ring-black'
-                  }`}
-                />
-
-                {/* コンテンツ本体 */}
-                <div onClick={() => toggleExpand(spot.id)} className="cursor-pointer">
-                  <div className="flex justify-between items-start">
-                    <h4 className={`text-base font-bold leading-tight transition-colors ${isNext ? 'text-white' : 'text-zinc-300'}`}>
-                      {spot.name}
-                    </h4>
-                    {isExpanded ? <ChevronUp size={16} className="text-zinc-600" /> : <ChevronDown size={16} className="text-zinc-800" />}
-                  </div>
-
-                  {/* 閉じてる時の簡易情報 */}
-                  {!isExpanded && (
-                    <div className="flex flex-wrap gap-2 mt-1.5 opacity-60">
-                       {spot.type === 'hotel' && <span className="text-[9px] text-zinc-500 border border-zinc-800 px-1.5 rounded">HOTEL</span>}
-                       {spot.quests && <span className="text-[9px] text-zinc-500 border border-zinc-800 px-1.5 rounded flex items-center gap-1"><CheckCircle2 size={8}/> {spot.quests.length}</span>}
-                       {spot.weather && <span className="text-[9px] text-zinc-500 border border-zinc-800 px-1.5 rounded flex items-center gap-1">{spot.weather.temp}</span>}
-                    </div>
-                  )}
-
-                  {/* 展開時の詳細情報 (アコーディオン) */}
-                  <AnimatePresence>
-                    {isExpanded && (
-                      <motion.div 
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="overflow-hidden"
-                      >
-                        <div className="mt-4 space-y-4 pb-2">
-                          {/* 写真 */}
-                          {spot.image && (
-                            <div className="rounded-xl overflow-hidden h-36 w-full relative border border-zinc-800">
-                              <img src={spot.image} alt={spot.name} className="w-full h-full object-cover" />
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent" />
-                              <div className="absolute bottom-2 left-3 right-3">
-                                <p className="text-xs text-zinc-300 font-medium leading-relaxed">{spot.description}</p>
-                              </div>
-                            </div>
-                          )}
-                          {!spot.image && spot.description && (
-                             <div className="pl-3 border-l-2 border-zinc-800">
-                               <p className="text-sm text-zinc-400 italic">"{spot.description}"</p>
-                             </div>
-                          )}
-
-                          {/* クエストリスト */}
-                          {spot.quests && (
-                            <div className="bg-zinc-900/50 rounded-lg p-3 border border-zinc-800">
-                              <h5 className="text-[10px] font-bold text-zinc-500 uppercase mb-2 flex items-center gap-1"><CheckCircle2 size={10}/> Missions</h5>
-                              <ul className="space-y-2">
-                                {spot.quests.map((q, i) => (
-                                  <li key={i} className="flex items-start gap-2 text-xs text-zinc-300">
-                                    <div className="mt-1 w-2 h-2 rounded-full bg-zinc-700 shrink-0" />
-                                    {q}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-
-                          {/* ドライバー情報 */}
-                          {spot.driverIntel && (
-                            <div className="bg-blue-900/10 rounded-lg p-3 border-l-2 border-blue-500/50">
-                              <h5 className="text-[10px] font-bold text-blue-400 uppercase mb-1 flex items-center gap-1">
-                                <CarFront size={12} /> Driver Note
-                              </h5>
-                              <p className="text-xs text-zinc-300 leading-relaxed">{spot.driverIntel.parking}</p>
-                              {spot.driverIntel.road && <p className="text-xs text-zinc-400 mt-1 leading-relaxed">{spot.driverIntel.road}</p>}
-                            </div>
-                          )}
-
-                          {/* グルメ情報 */}
-                          {spot.gourmet && (
-                            <div className="bg-orange-900/10 rounded-lg p-3 border-l-2 border-orange-500/50">
-                              <h5 className="text-[10px] font-bold text-orange-400 uppercase mb-1 flex items-center gap-1">
-                                <UtensilsCrossed size={12} /> Gourmet
-                              </h5>
-                              <div className="flex justify-between items-baseline">
-                                <span className="text-xs font-bold text-zinc-200">{spot.gourmet.item}</span>
-                                <span className="text-[10px] font-mono text-zinc-400">{spot.gourmet.price}</span>
-                              </div>
-                              {spot.gourmet.tip && <p className="text-[10px] text-zinc-400 mt-1 italic">"{spot.gourmet.tip}"</p>}
-                            </div>
-                          )}
-
-                          {/* 設備アイコン */}
-                          {spot.specs && (
-                            <div className="flex gap-2">
-                              {spot.specs.toilet === 'clean' && <span className="text-[10px] bg-zinc-900 text-blue-400 px-2 py-1 rounded border border-zinc-800 flex items-center gap-1"><Droplets size={10}/> TOILET</span>}
-                              {spot.specs.smoking && <span className="text-[10px] bg-zinc-900 text-zinc-400 px-2 py-1 rounded border border-zinc-800 flex items-center gap-1"><Cigarette size={10}/> SMOKE</span>}
-                              {spot.specs.vending && <span className="text-[10px] bg-zinc-900 text-green-400 px-2 py-1 rounded border border-zinc-800 flex items-center gap-1"><ShoppingBag size={10}/> STORE</span>}
-                            </div>
-                          )}
-
-                          {/* マップリンク */}
-                          <a 
-                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(spot.name)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="flex items-center justify-center gap-2 w-full py-3 bg-zinc-900 hover:bg-zinc-800 rounded-lg text-xs font-bold text-blue-400 border border-zinc-800 transition-colors"
-                          >
-                            <MapPin size={12} /> Google Maps
-                          </a>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-            </React.Fragment>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
-// --- Traffic Tab (変更なし) ---
 const TrafficTab = () => {
   const [region, setRegion] = useState<'kyushu' | 'chugoku' | 'kansai'>('kyushu');
   const [refreshKey, setRefreshKey] = useState(0);
   const accounts = { kyushu: { id: 'iHighwayKyushu', name: '九州エリア' }, chugoku: { id: 'iHighwayChugoku', name: '中国エリア' }, kansai: { id: 'iHighwayKansai', name: '関西エリア' }, };
   const handleRefresh = () => { setRefreshKey(prev => prev + 1); };
   return (
-    <div className="pb-24 px-4 h-full flex flex-col">
-      <div className="bg-gradient-to-br from-red-900/30 to-zinc-900 border border-red-500/30 p-4 rounded-2xl mb-4 shrink-0 flex justify-between items-start">
-        <div><h2 className="text-lg font-bold text-red-500 flex items-center gap-2 mb-1"><AlertTriangle className="animate-pulse" size={20} /> TRAFFIC INTEL</h2><p className="text-xs text-zinc-400">NEXCO西日本 公式ハイウェイ情報 (LIVE)</p></div>
-        <button onClick={handleRefresh} className="bg-zinc-800 p-2 rounded-full hover:bg-zinc-700 active:scale-95 transition-all text-zinc-400"><ScanLine size={18} /></button>
-      </div>
-      <div className="flex bg-zinc-900 p-1 rounded-xl mb-4 shrink-0 border border-zinc-800">
+    <div className="pt-32 pb-32 px-4 h-full flex flex-col bg-black">
+      <GlassCard className="p-4 mb-4 flex justify-between items-center bg-gradient-to-br from-red-900/30 to-zinc-900 border-red-500/30">
+        <div><h2 className="text-lg font-bold text-red-500 flex items-center gap-2 mb-1"><AlertTriangle className="animate-pulse" size={20} /> Traffic Intel</h2><p className="text-xs text-zinc-400">NEXCO West Live</p></div>
+        <button onClick={handleRefresh} className="bg-zinc-800/50 p-2 rounded-full hover:bg-zinc-700 active:scale-95 transition-all text-zinc-400"><ScanLine size={18} /></button>
+      </GlassCard>
+      <GlassCard className="p-1 mb-4 flex gap-1">
         {(Object.keys(accounts) as Array<keyof typeof accounts>).map((key) => (
-          <button key={key} onClick={() => { setRegion(key); setRefreshKey(prev => prev + 1); }} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${region === key ? 'bg-zinc-700 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}>{accounts[key].name}</button>
+          <button key={key} onClick={() => { setRegion(key); setRefreshKey(prev => prev + 1); }} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${region === key ? 'bg-zinc-700 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>{accounts[key].name}</button>
         ))}
-      </div>
+      </GlassCard>
       <div className="flex-1 overflow-y-auto rounded-xl"><TwitterFeed key={`${region}-${refreshKey}`} id={accounts[region].id} /></div>
-      <div className="mt-4 text-center"><p className="text-[10px] text-zinc-600">※ 表示されない場合はブラウザの「トラッキング防止」をOFFにしてください</p></div>
     </div>
   );
 };
 
-// --- Settings Tab ---
 const SettingsTab = () => {
   const { currentUser, expenses, resetAllData, refreshRouteData } = useNavStore();
-  const [tempUser, setTempUser] = useState(currentUser || 'Naoto');
-  const [isDarkMode, setIsDarkMode] = useState(true);
-  const toggleUser = () => { const users = ['Naoto', 'Taira', 'Haga']; const next = users[(users.indexOf(tempUser) + 1) % users.length]; setTempUser(next); };
-  const handleReset = () => { if (confirm('【警告】本当に旅費データを全て消去しますか？\nこの操作は取り消せません。')) { if(resetAllData) resetAllData(); else alert("データリセット"); } };
-  const Toggle = ({ active, onToggle }: { active: boolean, onToggle: () => void }) => (
-    <button onClick={onToggle} className={`w-10 h-6 rounded-full p-1 transition-colors relative ${active ? 'bg-green-500' : 'bg-zinc-600'}`}><div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${active ? 'translate-x-4' : 'translate-x-0'}`} /></button>
-  );
-  const ListItem = ({ icon, color, label, value, onClick, isDestructive = false, hasToggle, toggleState, onToggle }: any) => (
-    <div onClick={!hasToggle ? onClick : undefined} className={`w-full flex items-center justify-between p-4 border-b border-zinc-800 last:border-0 ${!hasToggle && 'active:bg-zinc-800'} transition-colors cursor-pointer`}>
-      <div className="flex items-center gap-3"><div className={`w-7 h-7 rounded-md flex items-center justify-center text-white ${color}`}>{icon}</div><span className={`text-sm font-medium ${isDestructive ? 'text-red-500' : 'text-white'}`}>{label}</span></div>
-      <div className="flex items-center gap-2">{hasToggle ? (<Toggle active={toggleState} onToggle={onToggle} />) : (<>{value && <span className="text-zinc-500 text-sm">{value}</span>}<ChevronRight size={16} className="text-zinc-600" /></>)}</div>
+  const MenuLink = ({ icon: Icon, label, value, color = "bg-zinc-700", onClick, destructive }: any) => (
+    <div onClick={onClick} className="flex items-center justify-between p-4 bg-zinc-900/40 backdrop-blur-md active:bg-zinc-800 transition-colors cursor-pointer border-b border-white/5 last:border-0 first:rounded-t-2xl last:rounded-b-2xl">
+      <div className="flex items-center gap-3">
+        <div className={`w-7 h-7 rounded-lg ${color} flex items-center justify-center text-white shadow-sm`}>
+          <Icon size={14} />
+        </div>
+        <span className={`text-sm font-medium ${destructive ? 'text-red-500' : 'text-white'}`}>{label}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        {value && <span className="text-sm text-zinc-500">{value}</span>}
+        <ChevronRight size={14} className="text-zinc-600" />
+      </div>
     </div>
   );
+
   return (
-    <div className="pb-24 px-4">
-      <h2 className="text-2xl font-bold text-white mb-6 px-2">Settings</h2>
-      
-      {/* Route Update Button Added */}
-      <div className="bg-zinc-900 rounded-xl overflow-hidden mb-6">
-         <div onClick={() => { if(refreshRouteData){ refreshRouteData(); window.location.reload(); } }} className="flex items-center justify-between p-4 active:bg-zinc-800 transition-colors cursor-pointer">
-            <div className="flex items-center gap-3"><div className="w-7 h-7 rounded-md flex items-center justify-center text-white bg-blue-600"><Settings size={16}/></div><span className="text-sm font-medium text-white">Update Route Data</span></div>
-            <ChevronRight size={16} className="text-zinc-600" />
-         </div>
+    <div className="pt-32 pb-32 px-4 min-h-screen bg-black">
+      <div className="mb-8 px-2">
+        <h2 className="text-3xl font-bold text-white tracking-tight">Settings</h2>
       </div>
 
-      <h3 className="text-zinc-500 text-xs uppercase font-normal ml-4 mb-2">Vehicle Specs</h3>
-      <div className="bg-zinc-900 rounded-xl overflow-hidden mb-6">
-        <ListItem icon={<CarFront size={16} />} color="bg-blue-600" label="Model" value="SERENA (C27)" />
-        <ListItem icon={<Gauge size={16} />} color="bg-purple-600" label="Fuel Type" value="Regular" />
-        <ListItem icon={<ShieldCheck size={16} />} color="bg-orange-500" label="Insurance" value="Full Coverage" />
+      <div className="space-y-6">
+        <div>
+          <h3 className="text-xs font-bold text-zinc-500 uppercase px-4 mb-2">Sync</h3>
+          <div className="rounded-2xl overflow-hidden">
+            <MenuLink icon={Activity} label="Refresh Route" color="bg-blue-500" onClick={() => { if(refreshRouteData){ refreshRouteData(); window.location.reload(); }}} />
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-xs font-bold text-zinc-500 uppercase px-4 mb-2">Profile</h3>
+          <div className="rounded-2xl overflow-hidden">
+            <MenuLink icon={User} label="Pilot Name" value={currentUser} color="bg-zinc-600" />
+            <MenuLink icon={Wallet} label="Records" value={`${expenses.length} recs`} color="bg-green-500" />
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-xs font-bold text-zinc-500 uppercase px-4 mb-2">Danger Zone</h3>
+          <div className="rounded-2xl overflow-hidden">
+            <MenuLink icon={Trash2} label="Reset All Data" color="bg-red-500" destructive onClick={() => { if(resetAllData && confirm('Reset?')) resetAllData(); }} />
+          </div>
+        </div>
       </div>
-      <h3 className="text-zinc-500 text-xs uppercase font-normal ml-4 mb-2">Pilot Profile</h3>
-      <div className="bg-zinc-900 rounded-xl overflow-hidden mb-6">
-        <ListItem icon={<User size={16} />} color="bg-blue-500" label="Current Pilot" value={tempUser} onClick={toggleUser} />
-        <ListItem icon={<Wallet size={16} />} color="bg-green-500" label="Wallet Records" value={`${expenses.length} recs`} />
-        <ListItem icon={<Bell size={16} />} color="bg-red-500" label="Notifications" hasToggle={true} toggleState={true} onToggle={() => {}} />
+      <div className="mt-12 text-center text-[10px] text-zinc-600 font-mono">
+        Designed by Apple Inspiration<br/>v3.0.1
       </div>
-      <h3 className="text-zinc-500 text-xs uppercase font-normal ml-4 mb-2">System</h3>
-      <div className="bg-zinc-900 rounded-xl overflow-hidden mb-6">
-        <ListItem icon={<Moon size={16} />} color="bg-indigo-500" label="Dark Mode" hasToggle={true} toggleState={isDarkMode} onToggle={() => setIsDarkMode(!isDarkMode)} />
-        <ListItem icon={<Info size={16} />} color="bg-gray-500" label="Version" value="2.1.0 (Grand Tour)" />
+    </div>
+  );
+};
+
+// --- Bottom Navigation (Apple Style) ---
+const BottomNav = ({ active, onChange }: { active: string, onChange: (t: any) => void }) => {
+  const NavItem = ({ id, icon: Icon, label }: any) => {
+    const isActive = active === id;
+    return (
+      <button 
+        onClick={() => onChange(id)}
+        className={`flex flex-col items-center justify-center w-full h-full transition-all duration-300 ${isActive ? 'text-[#0A84FF]' : 'text-zinc-500 hover:text-zinc-300'}`}
+      >
+        <motion.div
+          animate={{ y: isActive ? -2 : 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 20 }}
+        >
+          <Icon size={24} strokeWidth={isActive ? 2.5 : 2} fill={isActive ? "currentColor" : "none"} className={isActive ? "opacity-100" : "opacity-80"} />
+        </motion.div>
+        <span className="text-[10px] font-medium mt-1 tracking-wide">{label}</span>
+      </button>
+    );
+  };
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 h-[88px] bg-black/80 backdrop-blur-xl border-t border-white/10 z-50 pb-safe">
+      <div className="flex justify-around items-center h-full max-w-md mx-auto px-2 pb-4">
+        <NavItem id="command" icon={Navigation} label="Command" />
+        <NavItem id="traffic" icon={AlertTriangle} label="Traffic" />
+        <NavItem id="wallet" icon={Wallet} label="Wallet" />
+        <NavItem id="guide" icon={Activity} label="Guide" />
+        <NavItem id="settings" icon={Settings} label="Settings" />
       </div>
-      <h3 className="text-zinc-500 text-xs uppercase font-normal ml-4 mb-2">Danger Zone</h3>
-      <div className="bg-zinc-900 rounded-xl overflow-hidden mb-8">
-        <ListItem icon={<Trash2 size={16} />} color="bg-red-900" label="Reset Expenses" isDestructive={true} onClick={handleReset} />
-      </div>
-      <div className="text-center text-zinc-600 text-xs mb-8">Serena Navi Pro System<br/>Grand Tour Edition 2026</div>
     </div>
   );
 };
 
 // --- Main Component ---
 export const CoPilotPage: React.FC = () => {
-  const { sendNotification, setNextWaypoint, waypoints, currentUser } = useNavStore();
+  const { sendNotification, currentUser } = useNavStore();
   const [activeTab, setActiveTab] = useState<'command' | 'wallet' | 'guide' | 'traffic' | 'settings'>('command');
 
   const handleSend = (type: 'rest' | 'music' | 'info', msg: string) => {
@@ -500,53 +629,35 @@ export const CoPilotPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white font-sans flex flex-col">
+    <div className="min-h-screen bg-black text-white font-sans selection:bg-blue-500/30">
       <TelemetryHeader />
 
-      <main className="flex-1 pt-4 overflow-y-auto">
+      <main className="min-h-screen">
         <AnimatePresence mode="wait">
           {activeTab === 'command' && (
-            <motion.div key="command" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="px-4 pb-24">
+            <motion.div key="command" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pt-32 pb-32 px-4">
               <div className="mb-6"><DJPanel /></div>
               <JudgePanel />
-              <h2 className="text-xs font-bold text-zinc-500 uppercase mb-3 px-1">NAVIGATION HACK</h2>
-              <div className="space-y-3">
-                {waypoints.filter(w => w.type !== 'start').map((wp) => (
-                  <button key={wp.id} onClick={() => setNextWaypoint(wp.id)} className="w-full flex items-center justify-between bg-zinc-900/60 border border-zinc-800 p-4 rounded-xl active:bg-zinc-800 transition-all group">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${wp.type === 'parking' ? 'bg-green-900/20 text-green-500' : wp.type === 'sightseeing' ? 'bg-purple-900/20 text-purple-500' : 'bg-blue-900/20 text-blue-500'}`}><Navigation size={14} /></div>
-                      <div className="text-left"><div className="font-bold text-sm text-zinc-200">{wp.name}</div></div>
-                    </div>
-                    <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-600 group-hover:bg-blue-600 group-hover:text-white transition-all"><ArrowRight size={14} /></div>
-                  </button>
-                ))}
-              </div>
-              <div className="mt-8 grid grid-cols-2 gap-3">
-                <button onClick={() => handleSend('rest', 'トイレ行きたい')} className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl flex flex-col items-center gap-2 active:bg-zinc-800"><Coffee className="text-orange-400" /> <span className="text-xs font-bold">Rest Request</span></button>
-                <button onClick={() => handleSend('info', 'コンビニ寄りたい')} className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl flex flex-col items-center gap-2 active:bg-zinc-800"><Wallet className="text-blue-400" /> <span className="text-xs font-bold">Store Request</span></button>
+              <h2 className="text-xs font-bold text-zinc-500 uppercase mb-3 px-1 mt-8">Quick Actions</h2>
+              <div className="grid grid-cols-2 gap-3">
+                <GlassCard className="p-4 flex flex-col items-center gap-2 active:scale-95 transition-transform" >
+                  <button onClick={() => handleSend('rest', 'トイレ行きたい')} className="w-full h-full flex flex-col items-center"><Coffee className="text-orange-400 mb-1" size={24} /> <span className="text-xs font-bold">Rest</span></button>
+                </GlassCard>
+                <GlassCard className="p-4 flex flex-col items-center gap-2 active:scale-95 transition-transform">
+                  <button onClick={() => handleSend('info', 'コンビニ寄りたい')} className="w-full h-full flex flex-col items-center"><Wallet className="text-blue-400 mb-1" size={24} /> <span className="text-xs font-bold">Store</span></button>
+                </GlassCard>
               </div>
             </motion.div>
           )}
 
-          {activeTab === 'wallet' && <motion.div key="wallet" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><WalletTab /></motion.div>}
-          
-          {/* ★ここが新しくなったGUIDEタブ */}
-          {activeTab === 'guide' && <motion.div key="guide" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><GuideTab /></motion.div>}
-          
-          {activeTab === 'traffic' && <motion.div key="traffic" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><TrafficTab /></motion.div>}
-          {activeTab === 'settings' && <motion.div key="settings" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><SettingsTab /></motion.div>}
+          {activeTab === 'wallet' && <motion.div key="wallet" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><WalletTab /></motion.div>}
+          {activeTab === 'guide' && <motion.div key="guide" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><GuideTab /></motion.div>}
+          {activeTab === 'traffic' && <motion.div key="traffic" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><TrafficTab /></motion.div>}
+          {activeTab === 'settings' && <motion.div key="settings" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><SettingsTab /></motion.div>}
         </AnimatePresence>
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-black/80 backdrop-blur-xl border-t border-zinc-800 pb-safe z-40">
-        <div className="flex justify-around items-center h-16 max-w-md mx-auto px-2">
-          <button onClick={() => setActiveTab('command')} className={`flex flex-col items-center gap-1 w-full h-full justify-center transition-colors ${activeTab === 'command' ? 'text-blue-500' : 'text-zinc-600 hover:text-zinc-400'}`}><Navigation size={20} strokeWidth={activeTab === 'command' ? 2.5 : 2} /><span className="text-[9px] font-bold tracking-wider">CMD</span></button>
-          <button onClick={() => setActiveTab('traffic')} className={`flex flex-col items-center gap-1 w-full h-full justify-center transition-colors ${activeTab === 'traffic' ? 'text-red-500' : 'text-zinc-600 hover:text-zinc-400'}`}><AlertTriangle size={20} strokeWidth={activeTab === 'traffic' ? 2.5 : 2} /><span className="text-[9px] font-bold tracking-wider">TRAFFIC</span></button>
-          <button onClick={() => setActiveTab('wallet')} className={`flex flex-col items-center gap-1 w-full h-full justify-center transition-colors ${activeTab === 'wallet' ? 'text-green-500' : 'text-zinc-600 hover:text-zinc-400'}`}><Wallet size={20} strokeWidth={activeTab === 'wallet' ? 2.5 : 2} /><span className="text-[9px] font-bold tracking-wider">WALLET</span></button>
-          <button onClick={() => setActiveTab('guide')} className={`flex flex-col items-center gap-1 w-full h-full justify-center transition-colors ${activeTab === 'guide' ? 'text-purple-500' : 'text-zinc-600 hover:text-zinc-400'}`}><Activity size={20} strokeWidth={activeTab === 'guide' ? 2.5 : 2} /><span className="text-[9px] font-bold tracking-wider">GUIDE</span></button>
-          <button onClick={() => setActiveTab('settings')} className={`flex flex-col items-center gap-1 w-full h-full justify-center transition-colors ${activeTab === 'settings' ? 'text-zinc-100' : 'text-zinc-600 hover:text-zinc-400'}`}><Settings size={20} strokeWidth={activeTab === 'settings' ? 2.5 : 2} /><span className="text-[9px] font-bold tracking-wider">SETTING</span></button>
-        </div>
-      </nav>
+      <BottomNav active={activeTab} onChange={setActiveTab} />
     </div>
   );
 };
