@@ -13,7 +13,7 @@ interface NavActions {
   clearNotification: () => void;
   addExpense: (title: string, amount: number, payer: string) => void;
   removeExpense: (id: string) => void;
-  updateExpense: (id: string, data: Partial<Expense>) => void; // ★追加: 編集用
+  updateExpense: (id: string, data: Partial<Expense>) => void;
   updateLocation: (lat: number, lng: number, speed: number | null) => void;
   resetGeoFences: () => void;
   resetAllData: () => void;
@@ -138,24 +138,36 @@ export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => (
     },
     { 
       id: 'metasequoia', name: '🌲 メタセコイア並木', coords: { lat: 35.4568, lng: 136.0355 }, type: 'sightseeing',
-      description: '冬のソナタ的絶景ロード。雪道注意。',
+      description: '冬のソナタ的絶景ロード。早朝アタック推奨。',
       image: 'https://images.unsplash.com/photo-1542358896-7e3e4a9e5251?q=80&w=800',
       quests: ['並木道で愛車撮影', 'マキノピックランド'],
       driverIntel: { parking: '「マキノピックランド」駐車場が無料。路駐は絶対NG。', road: '冬は積雪エリア。ノーマルタイヤならライブカメラ要確認。' },
       specs: { toilet: 'normal', smoking: true, vending: true },
       weather: { type: 'snow', temp: '2°C' },
-      scheduledTime: '10:30'
+      scheduledTime: '09:30'
     },
     { 
-      id: 'nara_park', name: '奈良公園', coords: { lat: 34.6850, lng: 135.8430 }, type: 'sightseeing',
-      description: '鹿の帝国。人間は下僕。',
+      id: 'kyoto_kiyomizu', name: '⛩️ 京都・清水寺', coords: { lat: 34.9948, lng: 135.7850 }, type: 'sightseeing',
+      description: '京都の象徴。清水の舞台から飛び降りるつもりで楽しめ。',
+      image: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=800',
+      budget: '¥¥',
+      quests: ['清水の舞台で写真', '音羽の滝で水を飲む', '二年坂で食べ歩き'],
+      gourmet: { item: '湯豆腐 or 抹茶スイーツ', price: '¥1500', tip: '参道の誘惑に負けるな。奥まで行けば絶景カフェあり。' },
+      driverIntel: { parking: '清水寺周辺は地獄の混雑＆一方通行。少し離れた「五条坂」周辺のコインパ推奨。', road: '歩行者が神。絶対に徐行。' },
+      specs: { toilet: 'normal', smoking: false, vending: true },
+      weather: { type: 'sunny', temp: '14°C' },
+      scheduledTime: '13:00'
+    },
+    { 
+      id: 'nara_park', name: '🦌 奈良公園・東大寺', coords: { lat: 34.6850, lng: 135.8430 }, type: 'sightseeing',
+      description: '鹿の帝国＆世界最大級の木造建築。奈良に来たなら必須。',
       image: 'https://images.unsplash.com/photo-1579405625345-d86b97666272?q=80&w=800',
       budget: '¥',
-      quests: ['鹿せんべい課金', '大仏殿の柱くぐり'],
+      quests: ['大仏殿で圧倒される', '柱の穴くぐり', '鹿せんべい課金'],
       driverIntel: { parking: '県営駐車場が安牌だが混む。少し離れたコインパ推奨。', road: '鹿の飛び出し注意（マジで出る）。' },
       specs: { toilet: 'normal', smoking: false, vending: true },
       weather: { type: 'sunny', temp: '15°C' },
-      scheduledTime: '13:30'
+      scheduledTime: '16:00'
     },
     { 
       id: 'arima_onsen', name: '♨️ 有馬温泉 金の湯', coords: { lat: 34.7968, lng: 135.2478 }, type: 'parking',
@@ -167,7 +179,7 @@ export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => (
       gourmet: { item: '竹中肉店コロッケ', price: '¥150', tip: '揚げたてを狙え。' },
       specs: { toilet: 'clean', smoking: false, vending: true },
       weather: { type: 'cloudy', temp: '11°C' },
-      scheduledTime: '16:30'
+      scheduledTime: '19:00'
     },
     { 
       id: 'kobe_hotel', name: '🏨 カンデオホテルズ神戸', coords: { lat: 34.6908, lng: 135.1914 }, type: 'hotel',
@@ -177,7 +189,7 @@ export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => (
       driverIntel: { parking: '提携駐車場ありだが、高さ制限に注意。要確認。', road: '一方通行多し。ナビ絶対遵守。' },
       specs: { toilet: 'clean', smoking: true, vending: true },
       weather: { type: 'rain', temp: '9°C' },
-      scheduledTime: '19:00'
+      scheduledTime: '21:00'
     },
     { 
       id: 'hiroshima_okonomi', name: '🍴 広島お好み村', coords: { lat: 34.3915, lng: 132.4630 }, type: 'sightseeing',
@@ -268,7 +280,6 @@ export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => (
     remove(expenseRef);
   },
 
-  // ★実装: 編集機能
   updateExpense: (id, data) => {
     const expenseRef = ref(db, `expenses/${id}`);
     update(expenseRef, { ...data });
