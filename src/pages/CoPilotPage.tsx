@@ -8,7 +8,7 @@ import {
   Settings, ChevronRight, User, Trash2,
   Sun, CloudRain, 
   Gavel, Coffee, Wind,
-  ChevronUp, CarFront, Cigarette, Droplets
+  ChevronUp, CarFront, Cigarette, Droplets, Plus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSpotify } from '../hooks/useSpotify';
@@ -19,7 +19,7 @@ import { TwitterFeed } from '../components/widgets/TwitterFeed';
 const IOSCard = ({ children, className = "", onClick }: { children: React.ReactNode, className?: string, onClick?: () => void }) => (
   <motion.div 
     layout
-    whileTap={{ scale: 0.98 }}
+    whileTap={onClick ? { scale: 0.98 } : undefined}
     transition={{ type: "spring", stiffness: 400, damping: 30 }}
     onClick={onClick}
     className={`bg-[#1c1c1e]/90 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-lg overflow-hidden ${className}`}
@@ -32,6 +32,31 @@ const IOSTitle = ({ children, subtitle }: { children: React.ReactNode, subtitle?
   <div className="mb-6 px-2">
     <h2 className="text-[34px] font-bold text-white leading-tight tracking-tight">{children}</h2>
     {subtitle && <p className="text-zinc-500 font-medium text-[17px] mt-1">{subtitle}</p>}
+  </div>
+);
+
+// ★ New: iOS Segmented Control
+const SegmentedControl = ({ options, value, onChange }: { options: string[], value: string, onChange: (val: string) => void }) => (
+  <div className="flex bg-[#767680]/24 p-0.5 rounded-[9px] relative w-full h-8">
+    {options.map((option) => {
+      const isActive = value === option;
+      return (
+        <button
+          key={option}
+          onClick={() => onChange(option)}
+          className={`relative flex-1 flex items-center justify-center text-[13px] font-semibold capitalize z-10 transition-colors duration-200 ${isActive ? 'text-white' : 'text-zinc-400'}`}
+        >
+          {isActive && (
+            <motion.div
+              layoutId="segment-active"
+              className="absolute inset-0 bg-[#636366] rounded-[7px] shadow-[0_1px_2px_rgba(0,0,0,0.2)] z-[-1]"
+              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+            />
+          )}
+          {option}
+        </button>
+      );
+    })}
   </div>
 );
 
@@ -227,7 +252,7 @@ const GuideScreen = () => {
 
   const activeIndex = waypoints.findIndex(w => w.id === nextWaypointId);
 
-  // レイアウト設定: 左側のスペースを十分に取る
+  // レイアウト設定
   const TIMELINE_LEFT = 70;
   const DOT_LEFT = 65;
   const CONTENT_PAD = 96;
@@ -434,7 +459,8 @@ const WalletScreen = () => {
   const { expenses, addExpense } = useNavStore();
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
-  const payer = 'Naoto'; 
+  const [payer, setPayer] = useState('Naoto'); 
+  const members = ['Naoto', 'Taira', 'Haga'];
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const total = expenses.reduce((sum, item) => sum + item.amount, 0);
@@ -473,23 +499,54 @@ const WalletScreen = () => {
         </div>
       </div>
 
-      <div className="bg-[#1c1c1e] rounded-[20px] p-1 mb-6 flex items-center shadow-lg">
-        <button onClick={() => fileInputRef.current?.click()} className="p-3 bg-zinc-800 rounded-2xl text-zinc-400 hover:text-white transition-colors">
-          <ScanLine size={20} />
-        </button>
-        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleScan} />
-        <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Item" className="bg-transparent text-white px-3 py-2 outline-none w-full text-sm font-medium placeholder:text-zinc-600" />
-        <input value={amount} onChange={e => setAmount(e.target.value)} placeholder="¥0" type="number" className="bg-transparent text-white px-2 py-2 outline-none w-24 text-sm font-mono placeholder:text-zinc-600" />
-        <button onClick={add} className="bg-blue-600 text-white p-3 rounded-2xl font-bold text-sm ml-1 hover:bg-blue-500 transition-colors">Add</button>
+      <div className="bg-[#1c1c1e] rounded-[24px] p-4 mb-6 shadow-lg border border-white/5">
+        <div className="mb-4">
+          <SegmentedControl 
+            options={members} 
+            value={payer} 
+            onChange={setPayer} 
+          />
+        </div>
+
+        <div className="space-y-3">
+           <div className="flex gap-2">
+            <button onClick={() => fileInputRef.current?.click()} className="p-3 bg-zinc-800 rounded-xl text-zinc-400 hover:text-white transition-colors h-12 w-12 flex items-center justify-center shrink-0">
+              <ScanLine size={20} />
+            </button>
+            <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleScan} />
+            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="What did you buy?" className="bg-zinc-900/50 text-white px-4 h-12 rounded-xl outline-none w-full text-base font-medium placeholder:text-zinc-600 border border-white/5 focus:border-blue-500/50 transition-colors" />
+           </div>
+           
+           <div className="flex gap-2">
+            <div className="relative flex-1">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 font-mono">¥</span>
+              <input value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" type="number" className="bg-zinc-900/50 text-white pl-8 pr-4 h-12 rounded-xl outline-none w-full text-base font-mono placeholder:text-zinc-600 border border-white/5 focus:border-blue-500/50 transition-colors" />
+            </div>
+            <button onClick={add} className="bg-[#007AFF] text-white px-6 h-12 rounded-xl font-bold text-sm hover:bg-[#0062cc] active:scale-95 transition-all shadow-lg shadow-blue-900/20 flex items-center gap-1">
+              <Plus size={18} strokeWidth={3} /> Add
+            </button>
+           </div>
+        </div>
       </div>
 
       <div className="space-y-1">
         <h3 className="text-xs font-bold text-zinc-500 uppercase px-4 mb-2">Recent Activity</h3>
         {expenses.slice().reverse().map((ex) => (
           <div key={ex.id} className="flex justify-between items-center p-4 bg-[#1c1c1e]/50 border-b border-white/5 last:border-0 first:rounded-t-2xl last:rounded-b-2xl backdrop-blur-md">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-400">{ex.payer.charAt(0)}</div>
-              <span className="text-sm font-medium text-white">{ex.title}</span>
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-sm font-bold text-zinc-400 border border-white/5">
+                {ex.payer.charAt(0)}
+              </div>
+              <div>
+                <span className="text-sm font-bold text-white block leading-tight">{ex.title}</span>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                   <span className="text-[10px] text-zinc-500 font-medium bg-zinc-800/50 px-1.5 py-0.5 rounded">{ex.payer}</span>
+                   {/* Date and Time Display */}
+                   <span className="text-[10px] text-zinc-600 font-mono">
+                     {new Date(ex.timestamp).toLocaleDateString([], {month: 'numeric', day: 'numeric'})} {new Date(ex.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                   </span>
+                </div>
+              </div>
             </div>
             <span className="text-sm font-mono text-zinc-300">- ¥{ex.amount.toLocaleString()}</span>
           </div>
