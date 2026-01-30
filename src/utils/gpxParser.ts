@@ -1,14 +1,28 @@
-import type { TrackPoint, TripLog } from '../types';
+import type { TrackPoint } from '../types';
 
-// 入力を File から string (XMLテキスト) に変更
-export const parseGPX = (xmlText: string): TripLog => {
+export interface DailyLog {
+  date: string; // "2026/01/26"
+  trackPoints: TrackPoint[];
+  distance: number;
+  duration: string;
+}
+
+export interface MultiDayTripLog {
+  id: string;
+  title: string;
+  totalDistance: number;
+  totalDuration: string;
+  days: DailyLog[]; // 日ごとの配列
+}
+
+export const parseGPX = (xmlText: string): MultiDayTripLog => {
   const parser = new DOMParser();
   const xml = parser.parseFromString(xmlText, "application/xml");
 
-  const trackPoints: TrackPoint[] = [];
   const trkpts = xml.getElementsByTagName('trkpt');
+  const allPoints: TrackPoint[] = [];
 
-  // 1. 軌跡データの抽出
+  // 1. 全ポイント抽出
   for (let i = 0; i < trkpts.length; i++) {
     const pt = trkpts[i];
     const lat = parseFloat(pt.getAttribute('lat') || '0');
@@ -17,27 +31,46 @@ export const parseGPX = (xmlText: string): TripLog => {
     const timeStr = pt.getElementsByTagName('time')[0]?.textContent || '';
     
     if (lat && lon && timeStr) {
-      trackPoints.push({
-        lat,
-        lon,
-        ele,
-        time: new Date(timeStr)
-      });
+      allPoints.push({ lat, lon, ele, time: new Date(timeStr) });
     }
   }
 
-  // 2. メタデータの生成
-  const startTime = trackPoints[0]?.time;
-  const endTime = trackPoints[trackPoints.length - 1]?.time;
+  // 2. 日付ごとにグループ化
+  const daysMap = new Map<string, TrackPoint[]>();
   
+  allPoints.forEach(pt => {
+    // 日本時間での日付文字列を生成
+    const dateKey = pt.time.toLocaleDateString('ja-JP', {
+      year: 'numeric', month: '2-digit', day: '2-digit'
+    });
+    
+    if (!daysMap.has(dateKey)) {
+      daysMap.set(dateKey, []);
+    }
+    daysMap.get(dateKey)?.push(pt);
+  });
+
+  // 3. 配列に変換して整形
+  const days: DailyLog[] = Array.from(daysMap.entries()).map(([date, points]) => {
+    const start = points[0].time;
+    const end = points[points.length - 1].time;
+    return {
+      date,
+      trackPoints: points,
+      distance: 0, // 簡易版なので0
+      duration: calculateDuration(start, end)
+    };
+  });
+
+  // 日付順にソート
+  days.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
   return {
-    id: `trip_${startTime ? startTime.getTime() : Date.now()}`,
-    title: 'Serena Touring 2026 Winter',
-    date: startTime ? startTime.toLocaleDateString() : new Date().toLocaleDateString(),
-    distance: 0,
-    duration: endTime && startTime ? calculateDuration(startTime, endTime) : '00:00',
-    trackPoints,
-    waypoints: []
+    id: `trip_${Date.now()}`,
+    title: 'Serena Grand Touring',
+    totalDistance: 0,
+    totalDuration: '4 Days',
+    days
   };
 };
 
