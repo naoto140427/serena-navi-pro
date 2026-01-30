@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import Map, { Source, Layer, type MapRef } from 'react-map-gl';
 import { useNavStore } from '../store/useNavStore';
 import { 
   Navigation, Mic, ScanLine, Loader2, Wallet, Activity, 
@@ -6,14 +7,23 @@ import {
   Cpu, HardDrive, Wifi, Battery, Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-// Widgets & Hooks
-import { MapWidget } from '../components/widgets/MapWidget';
-import { NexcoWidget } from '../components/widgets/NexcoWidget';
 import { TrafficTicker } from '../components/widgets/TrafficTicker';
 import { HighwaySignWidget } from '../components/widgets/HighwaySignWidget';
 import { useVoiceAssistant } from '../hooks/useVoiceAssistant';
 import { WalletPage } from './WalletPage';
+import type { Coordinates } from '../types';
+
+// Mapbox Token
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+
+// 🛠️ エンジニアリング設定 (チューニング用)
+const CONFIG = {
+  INTERPOLATION_FACTOR: 0.08,
+  MAX_ZOOM: 16.5,
+  MIN_ZOOM: 13.0,
+  MAX_PITCH: 78,
+  MIN_PITCH: 45,
+};
 
 // --- Shared Components ---
 const ProCard = ({ children, className = "", onClick, noBlur = false }: { children: React.ReactNode, className?: string, onClick?: () => void, noBlur?: boolean }) => (
@@ -39,7 +49,7 @@ const Speedometer = ({ speed }: { speed: number }) => {
       <div className="flex flex-col items-center z-10">
         <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] mb-1">Ground Speed</span>
         <div className="flex items-baseline gap-1">
-          <span className="text-7xl font-bold text-white font-mono tracking-tighter tabular-nums">{speed}</span>
+          <span className="text-7xl font-bold text-white font-mono tracking-tighter tabular-nums">{Math.round(speed)}</span>
           <span className="text-lg font-medium text-zinc-500">km/h</span>
         </div>
       </div>
@@ -105,63 +115,106 @@ const ActionButton = ({ icon: Icon, label, active, onClick, color = "text-white"
   </button>
 );
 
-// --- Admin Dashboard (Settings) ---
+// --- Admin Dashboard ---
 const AdminDashboard = () => {
   const { resetAllData, refreshRouteData } = useNavStore();
   return (
     <div className="h-full bg-black text-white p-6 overflow-y-auto pb-32">
       <h2 className="text-[34px] font-bold tracking-tight mb-8">System Admin</h2>
-      
       <div className="grid grid-cols-2 gap-4 mb-8">
-        <ProCard className="p-4 flex flex-col items-center gap-2 bg-zinc-900/50">
-          <Cpu size={24} className="text-blue-500" />
-          <span className="text-xs font-bold text-zinc-500">CPU LOAD</span>
-          <span className="text-xl font-mono">12%</span>
-        </ProCard>
-        <ProCard className="p-4 flex flex-col items-center gap-2 bg-zinc-900/50">
-          <HardDrive size={24} className="text-purple-500" />
-          <span className="text-xs font-bold text-zinc-500">STORAGE</span>
-          <span className="text-xl font-mono">45%</span>
-        </ProCard>
-        <ProCard className="p-4 flex flex-col items-center gap-2 bg-zinc-900/50">
-          <Wifi size={24} className="text-green-500" />
-          <span className="text-xs font-bold text-zinc-500">NETWORK</span>
-          <span className="text-xl font-mono">5G</span>
-        </ProCard>
-        <ProCard className="p-4 flex flex-col items-center gap-2 bg-zinc-900/50">
-          <Battery size={24} className="text-yellow-500" />
-          <span className="text-xs font-bold text-zinc-500">POWER</span>
-          <span className="text-xl font-mono">100%</span>
-        </ProCard>
+        <ProCard className="p-4 flex flex-col items-center gap-2 bg-zinc-900/50"><Cpu size={24} className="text-blue-500" /><span className="text-xs font-bold text-zinc-500">CPU LOAD</span><span className="text-xl font-mono">12%</span></ProCard>
+        <ProCard className="p-4 flex flex-col items-center gap-2 bg-zinc-900/50"><HardDrive size={24} className="text-purple-500" /><span className="text-xs font-bold text-zinc-500">STORAGE</span><span className="text-xl font-mono">45%</span></ProCard>
+        <ProCard className="p-4 flex flex-col items-center gap-2 bg-zinc-900/50"><Wifi size={24} className="text-green-500" /><span className="text-xs font-bold text-zinc-500">NETWORK</span><span className="text-xl font-mono">5G</span></ProCard>
+        <ProCard className="p-4 flex flex-col items-center gap-2 bg-zinc-900/50"><Battery size={24} className="text-yellow-500" /><span className="text-xs font-bold text-zinc-500">POWER</span><span className="text-xl font-mono">100%</span></ProCard>
       </div>
-
       <h3 className="text-xs font-bold text-zinc-500 uppercase px-2 mb-3">Maintenance</h3>
       <div className="space-y-3">
-        <ProCard onClick={() => { if(refreshRouteData) refreshRouteData(); }} className="p-4 flex items-center justify-between cursor-pointer hover:bg-white/5">
-          <span className="font-medium">Force Sync Route Data</span>
-          <Activity size={16} className="text-blue-500" />
-        </ProCard>
-        <ProCard onClick={() => { if(confirm('Factory Reset?')) resetAllData(); }} className="p-4 flex items-center justify-between cursor-pointer hover:bg-red-900/20 border-red-900/30">
-          <span className="font-medium text-red-400">Factory Reset</span>
-          <Trash2 size={16} className="text-red-500" />
-        </ProCard>
+        <ProCard onClick={() => refreshRouteData()} className="p-4 flex items-center justify-between cursor-pointer hover:bg-white/5"><span className="font-medium">Force Sync Route Data</span><Activity size={16} className="text-blue-500" /></ProCard>
+        <ProCard onClick={() => { if(confirm('Factory Reset?')) resetAllData(); }} className="p-4 flex items-center justify-between cursor-pointer hover:bg-red-900/20 border-red-900/30"><span className="font-medium text-red-400">Factory Reset</span><Trash2 size={16} className="text-red-500" /></ProCard>
       </div>
     </div>
   );
 };
 
 // --- Main Layout ---
-
 export const CockpitPage: React.FC = () => {
-  const { trafficInfo, nextWaypoint, currentSpeed, nearestFacilityText, addExpense, currentLocation } = useNavStore();
-  const safeTrafficInfo = trafficInfo || { riskLevel: 0, jamDistance: 0, nextReg: '--' };
-  
+  const { nextWaypoint, currentSpeed, nearestFacilityText, addExpense, currentLocation } = useNavStore();
   const [activeTab, setActiveTab] = useState<'drive' | 'wallet' | 'admin'>('drive');
   const [focusMode, setFocusMode] = useState(false);
   
   const { isListening, startListening } = useVoiceAssistant();
   const [isScanning, setIsScanning] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // --- MAP ENGINE ---
+  const mapRef = useRef<MapRef>(null);
+  const [isMapLoaded, setIsMapLoaded] = useState(false);
+  const visualState = useRef({ lat: currentLocation.lat, lng: currentLocation.lng, bearing: 0, speed: 0 });
+  const animationRef = useRef<number | null>(null);
+
+  const lerp = (start: number, end: number, t: number) => start * (1 - t) + end * t;
+
+  const calculateBearing = (start: Coordinates, end: Coordinates) => {
+    const startLat = start.lat * (Math.PI / 180);
+    const startLng = start.lng * (Math.PI / 180);
+    const endLat = end.lat * (Math.PI / 180);
+    const endLng = end.lng * (Math.PI / 180);
+    const y = Math.sin(endLng - startLng) * Math.cos(endLat);
+    const x = Math.cos(startLat) * Math.sin(endLat) - Math.sin(startLat) * Math.cos(endLat) * Math.cos(endLng - startLng);
+    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+  };
+
+  const updateFrame = useCallback(() => {
+    if (!mapRef.current) return;
+    const targetLat = currentLocation.lat;
+    const targetLng = currentLocation.lng;
+    const targetSpeed = currentSpeed || 0;
+    const current = visualState.current;
+
+    const smoothLat = lerp(current.lat, targetLat, CONFIG.INTERPOLATION_FACTOR);
+    const smoothLng = lerp(current.lng, targetLng, CONFIG.INTERPOLATION_FACTOR);
+    const smoothSpeed = lerp(current.speed, targetSpeed, 0.05);
+
+    let smoothBearing = current.bearing;
+    if (smoothSpeed > 1.0) {
+      const rawBearing = calculateBearing({ lat: current.lat, lng: current.lng }, { lat: smoothLat, lng: smoothLng });
+      smoothBearing = lerp(current.bearing, rawBearing, 0.05);
+    }
+
+    const myLocationSource = mapRef.current.getSource('my-location-source') as any;
+    if (myLocationSource) {
+      myLocationSource.setData({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [smoothLng, smoothLat] }
+      });
+    }
+
+    const speedFactor = Math.min(1, smoothSpeed / 100);
+    const targetZoom = lerp(CONFIG.MAX_ZOOM, CONFIG.MIN_ZOOM, speedFactor);
+    const targetPitch = lerp(CONFIG.MIN_PITCH, CONFIG.MAX_PITCH, speedFactor);
+
+    mapRef.current.getMap().jumpTo({
+      center: [smoothLng, smoothLat],
+      zoom: targetZoom,
+      pitch: targetPitch,
+      bearing: smoothBearing,
+      padding: { top: 0, bottom: 200, left: 0, right: 0 }
+    });
+
+    visualState.current = { lat: smoothLat, lng: smoothLng, bearing: smoothBearing, speed: smoothSpeed };
+    animationRef.current = requestAnimationFrame(updateFrame);
+  }, [currentLocation, currentSpeed]);
+
+  useEffect(() => {
+    if (isMapLoaded) animationRef.current = requestAnimationFrame(updateFrame);
+    return () => { if (animationRef.current) cancelAnimationFrame(animationRef.current); };
+  }, [isMapLoaded, updateFrame]);
+
+  const initialMyPos = useMemo(() => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [currentLocation.lng, currentLocation.lat] } }), []);
+  const navLineGeoJson = useMemo(() => {
+    if (!nextWaypoint) return null;
+    return { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [[currentLocation.lng, currentLocation.lat], [nextWaypoint.coords.lng, nextWaypoint.coords.lat]] } };
+  }, [currentLocation, nextWaypoint]);
 
   const speak = (text: string) => {
     const uttr = new SpeechSynthesisUtterance(text);
@@ -174,20 +227,12 @@ export const CockpitPage: React.FC = () => {
     if (!file) return;
     setIsScanning(true);
     speak("Processing receipt.");
-    try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64String = reader.result as string;
-        const res = await fetch('/api/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: base64String }) });
-        const data = await res.json();
-        if (data.title && data.amount) {
-          addExpense(data.title, parseInt(data.amount), 'Naoto');
-          speak("Expense registered.");
-        } else { speak("Scan failed."); }
-        setIsScanning(false);
-      };
-      reader.readAsDataURL(file);
-    } catch (error) { setIsScanning(false); speak("System error."); }
+    // Dummy implementation
+    setTimeout(() => {
+       addExpense("Lunch", 1500, 'Naoto');
+       speak("Expense registered.");
+       setIsScanning(false);
+    }, 2000);
   };
 
   return (
@@ -209,11 +254,8 @@ export const CockpitPage: React.FC = () => {
           
           {/* 1. DRIVE MODE (Cockpit) */}
           {activeTab === 'drive' && (
-            <motion.div 
-              key="drive"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="absolute inset-0 p-4 pt-16 pb-24 grid grid-cols-12 grid-rows-12 gap-4"
-            >
+            <motion.div key="drive" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 p-4 pt-16 pb-24 grid grid-cols-12 grid-rows-12 gap-4">
+              
               {/* Speedometer */}
               <ProCard className={`col-span-12 md:col-span-5 row-span-5 md:row-span-6 relative transition-all duration-500 ${focusMode ? 'scale-105 z-40 bg-black border-none' : ''}`}>
                 <Speedometer speed={currentSpeed} />
@@ -223,12 +265,44 @@ export const CockpitPage: React.FC = () => {
                 </div>
               </ProCard>
 
-              {/* Map & Nav */}
+              {/* 🗺️ NEW MAP ENGINE */}
               <ProCard className={`col-span-12 md:col-span-7 row-span-4 md:row-span-6 overflow-hidden relative group transition-all duration-500 ${focusMode ? 'opacity-20 blur-sm' : ''}`}>
-                <div className="absolute inset-0 z-0 opacity-60 group-hover:opacity-100 transition-opacity"><MapWidget /></div>
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent pointer-events-none" />
+                <div className="absolute inset-0 z-0">
+                   <Map
+                    ref={mapRef}
+                    initialViewState={{ longitude: currentLocation.lng, latitude: currentLocation.lat, zoom: 15, pitch: 60 }}
+                    onLoad={() => setIsMapLoaded(true)}
+                    style={{ width: '100%', height: '100%' }}
+                    mapStyle="mapbox://styles/mapbox/dark-v11"
+                    mapboxAccessToken={MAPBOX_TOKEN}
+                    terrain={{ source: 'mapbox-dem', exaggeration: 1.5 }}
+                    fog={{ "range": [0.5, 10], "color": "#050505", "horizon-blend": 0.2, "high-color": "#1a1a1a", "space-color": "#000000", "star-intensity": 0.6 }}
+                    attributionControl={false}
+                  >
+                    <Source id="mapbox-dem" type="raster-dem" url="mapbox://mapbox.mapbox-terrain-dem-v1" tileSize={512} maxzoom={14} />
+                    {navLineGeoJson && (
+                      <Source id="nav-line-source" type="geojson" data={navLineGeoJson as any}>
+                        <Layer id="nav-line-glow" type="line" layout={{ 'line-join': 'round', 'line-cap': 'round' }} paint={{ 'line-color': '#007AFF', 'line-width': 10, 'line-opacity': 0.2, 'line-blur': 10 }} />
+                        <Layer id="nav-line-core" type="line" layout={{ 'line-join': 'round', 'line-cap': 'round' }} paint={{ 'line-color': '#00C7BE', 'line-width': 4, 'line-opacity': 0.9, 'line-dasharray': [0.5, 2] }} />
+                      </Source>
+                    )}
+                    <Source id="my-location-source" type="geojson" data={initialMyPos as any}>
+                       <Layer id="my-glow-ring" type="circle" paint={{ 'circle-radius': 40, 'circle-color': '#007AFF', 'circle-opacity': 0.15, 'circle-blur': 0.8, 'circle-pitch-alignment': 'map' }} />
+                       <Layer id="my-core" type="circle" paint={{ 'circle-radius': 12, 'circle-color': '#FFFFFF', 'circle-stroke-width': 4, 'circle-stroke-color': '#007AFF', 'circle-pitch-alignment': 'map' }} />
+                    </Source>
+                  </Map>
+                </div>
+                
+                {/* Overlay UI */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent pointer-events-none" />
                 <div className="absolute bottom-0 left-0 right-0 p-5 z-10"><NavModule nextWaypoint={nextWaypoint} distance={nearestFacilityText} /></div>
-                <div className="absolute top-4 right-4 z-20"><NexcoWidget riskLevel={safeTrafficInfo.riskLevel} jamDistance={safeTrafficInfo.jamDistance} nextReg={safeTrafficInfo.nextReg} /></div>
+                
+                {/* Loading State */}
+                {!isMapLoaded && (
+                   <div className="absolute inset-0 bg-black flex items-center justify-center z-50">
+                     <Loader2 className="animate-spin text-blue-500" size={32} />
+                   </div>
+                )}
               </ProCard>
 
               {/* Console & Actions */}
@@ -272,7 +346,7 @@ export const CockpitPage: React.FC = () => {
 
       <TrafficTicker />
 
-      {/* --- Bottom Dock Navigation (Admin Style) --- */}
+      {/* --- Bottom Dock Navigation --- */}
       <div className="fixed bottom-6 left-0 right-0 flex justify-center z-50 pointer-events-none">
         <motion.div 
           initial={{ y: 100 }} animate={{ y: 0 }}
@@ -281,13 +355,10 @@ export const CockpitPage: React.FC = () => {
           <button onClick={() => setActiveTab('drive')} className={`relative group p-3 rounded-full transition-all duration-300 ${activeTab === 'drive' ? 'bg-white text-black scale-110' : 'text-zinc-400 hover:bg-white/10'}`}>
             <Activity size={22} strokeWidth={activeTab === 'drive' ? 2.5 : 2} />
           </button>
-          
           <div className="w-[1px] h-6 bg-white/10" />
-
           <button onClick={() => setActiveTab('wallet')} className={`relative group p-3 rounded-full transition-all duration-300 ${activeTab === 'wallet' ? 'bg-white text-black scale-110' : 'text-zinc-400 hover:bg-white/10'}`}>
             <Wallet size={22} strokeWidth={activeTab === 'wallet' ? 2.5 : 2} />
           </button>
-
           <button onClick={() => setActiveTab('admin')} className={`relative group p-3 rounded-full transition-all duration-300 ${activeTab === 'admin' ? 'bg-[#FF453A] text-white scale-110 shadow-[0_0_15px_rgba(255,69,58,0.5)]' : 'text-zinc-400 hover:bg-white/10'}`}>
             <Terminal size={22} strokeWidth={2.5} />
           </button>
