@@ -1,9 +1,9 @@
 import type { TrackPoint, TripLog } from '../types';
 
-export const parseGPX = async (file: File): Promise<TripLog> => {
-  const text = await file.text();
+// 入力を File から string (XMLテキスト) に変更
+export const parseGPX = (xmlText: string): TripLog => {
   const parser = new DOMParser();
-  const xml = parser.parseFromString(text, "application/xml");
+  const xml = parser.parseFromString(xmlText, "application/xml");
 
   const trackPoints: TrackPoint[] = [];
   const trkpts = xml.getElementsByTagName('trkpt');
@@ -32,7 +32,7 @@ export const parseGPX = async (file: File): Promise<TripLog> => {
   
   return {
     id: `trip_${startTime ? startTime.getTime() : Date.now()}`,
-    title: 'Serena Touring Log',
+    title: 'Serena Touring 2026 Winter',
     date: startTime ? startTime.toLocaleDateString() : new Date().toLocaleDateString(),
     distance: 0,
     duration: endTime && startTime ? calculateDuration(startTime, endTime) : '00:00',

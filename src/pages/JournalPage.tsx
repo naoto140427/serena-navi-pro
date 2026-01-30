@@ -1,47 +1,51 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Map, { Source, Layer, NavigationControl } from 'react-map-gl';
 import { motion } from 'framer-motion';
-import { Upload, Activity, Mountain, ArrowLeft } from 'lucide-react';
+import { Activity, Mountain, ArrowLeft, Loader2 } from 'lucide-react';
 import { parseGPX } from '../utils/gpxParser';
 import type { TripLog } from '../types';
 import { useNavStore } from '../store/useNavStore';
 
-// Mapbox Token (環境変数から取得)
+// Mapbox Token
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 type ViewMode = 'velocity' | 'altitude';
 
 export const JournalPage: React.FC = () => {
-  // setAppModeをStoreから直接取得
   const { setAppMode } = useNavStore(); 
   
   const [tripLog, setTripLog] = useState<TripLog | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('velocity');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // GPXファイルの読み込み処理
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // 起動時に自動で GPXファイルを fetch する
+  useEffect(() => {
+    const loadTripData = async () => {
+      try {
+        // publicフォルダの trip.gpx を取得
+        const response = await fetch('/trip.gpx');
+        if (!response.ok) {
+          throw new Error('Trip data not found');
+        }
+        const text = await response.text();
+        const log = parseGPX(text);
+        setTripLog(log);
+      } catch (err) {
+        console.error('Failed to load GPX', err);
+        setError('ログデータの読み込みに失敗しました。publicフォルダに trip.gpx はありますか？');
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    setIsLoading(true);
-    try {
-      const log = await parseGPX(file);
-      setTripLog(log);
-    } catch (err) {
-      console.error('Failed to parse GPX', err);
-      alert('GPXファイルの読み込みに失敗しました');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    loadTripData();
+  }, []);
 
-  // GeoJSONデータの生成（地図描画用）
+  // GeoJSONデータの生成
   const geoJsonData = useMemo(() => {
     if (!tripLog) return null;
-
     const coordinates = tripLog.trackPoints.map(pt => [pt.lon, pt.lat, pt.ele]);
-    
     return {
       type: 'Feature',
       properties: {},
@@ -52,59 +56,48 @@ export const JournalPage: React.FC = () => {
     };
   }, [tripLog]);
 
-  // 地図の表示範囲（バウンディングボックス）を計算
+  // 初期表示位置
   const initialViewState = useMemo(() => {
     if (!tripLog || tripLog.trackPoints.length === 0) {
       return { longitude: 135.0, latitude: 34.5, zoom: 8 };
     }
-    // 最初の地点を中心にする（本来はfitBoundsすべきですが簡易的に）
-    const start = tripLog.trackPoints[0];
+    // 四国全体が見えるような初期位置（おおよそ）
     return {
-      longitude: start.lon,
-      latitude: start.lat,
-      zoom: 9,
-      pitch: 45, // 3D感を出すために少し傾ける
+      longitude: 133.5,
+      latitude: 33.8,
+      zoom: 7.5,
+      pitch: 45,
     };
   }, [tripLog]);
 
   // --- UI Components ---
 
-  // ファイルアップロード画面
-  if (!tripLog) {
+  // ローディング画面
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-md w-full bg-zinc-900/50 backdrop-blur-xl border border-white/10 rounded-3xl p-12 text-center"
-        >
-          <div className="w-20 h-20 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Upload className="text-blue-400" size={32} />
-          </div>
-          <h2 className="text-2xl font-bold mb-2">Import GPX Log</h2>
-          <p className="text-zinc-400 mb-8 text-sm">
-            Drag & drop your touring log here to relive the journey.
-          </p>
-          
-          <label className="block w-full cursor-pointer group">
-            <input type="file" accept=".gpx" onChange={handleFileUpload} className="hidden" />
-            <div className="w-full py-4 bg-white text-black font-bold rounded-full hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2">
-              {isLoading ? 'Processing...' : 'Select File'}
-            </div>
-          </label>
-          
-          <button 
-            onClick={() => setAppMode('launcher')} 
-            className="mt-6 text-zinc-500 text-sm hover:text-white transition-colors"
-          >
-            Cancel
-          </button>
-        </motion.div>
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center text-white">
+        <Loader2 className="animate-spin mb-4 text-blue-500" size={48} />
+        <p className="text-zinc-400 animate-pulse">Accessing Serena's Memory Bank...</p>
       </div>
     );
   }
 
-  // 地図画面
+  // エラー画面
+  if (error || !tripLog) {
+    return (
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center text-white p-8 text-center">
+        <p className="text-red-500 mb-4 font-bold">{error}</p>
+        <button 
+          onClick={() => setAppMode('launcher')} 
+          className="px-6 py-2 bg-zinc-800 rounded-full hover:bg-zinc-700 transition-colors"
+        >
+          Return to Launcher
+        </button>
+      </div>
+    );
+  }
+
+  // 地図画面 (メイン)
   return (
     <div className="h-screen w-full relative bg-black overflow-hidden">
       
@@ -118,7 +111,6 @@ export const JournalPage: React.FC = () => {
         mapboxAccessToken={MAPBOX_TOKEN}
         terrain={viewMode === 'altitude' ? { source: 'mapbox-dem', exaggeration: 1.5 } : undefined}
       >
-        {/* 3D Terrain Source (Altitude Modeのみ) */}
         {viewMode === 'altitude' && (
            <Source
              id="mapbox-dem"
@@ -129,16 +121,12 @@ export const JournalPage: React.FC = () => {
            />
         )}
 
-        {/* 軌跡の描画 */}
         {geoJsonData && (
           <Source id="route-source" type="geojson" data={geoJsonData as any}>
             <Layer
               id="route-layer"
               type="line"
-              layout={{
-                'line-join': 'round',
-                'line-cap': 'round'
-              }}
+              layout={{ 'line-join': 'round', 'line-cap': 'round' }}
               paint={{
                 'line-color': viewMode === 'velocity' ? '#007AFF' : '#FF9500',
                 'line-width': 4,
@@ -146,7 +134,6 @@ export const JournalPage: React.FC = () => {
                 'line-blur': 1
               }}
             />
-            {/* ネオン発光エフェクト (Velocity Modeのみ) */}
             {viewMode === 'velocity' && (
               <Layer
                 id="route-glow"
@@ -172,7 +159,7 @@ export const JournalPage: React.FC = () => {
         <motion.button
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          onClick={() => setTripLog(null)} // リセットしてアップロード画面へ
+          onClick={() => setAppMode('launcher')} // ランチャーに戻る
           className="pointer-events-auto w-12 h-12 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white hover:bg-white/10 transition-colors"
         >
           <ArrowLeft size={20} />
@@ -211,17 +198,17 @@ export const JournalPage: React.FC = () => {
         className="absolute bottom-10 left-6 right-6 md:left-auto md:right-6 md:w-80 pointer-events-none"
       >
         <div className="bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl">
-          <h3 className="text-zinc-400 text-xs font-bold tracking-widest uppercase mb-1">TRIP DATE</h3>
-          <div className="text-2xl font-bold text-white mb-4">{tripLog.date}</div>
+          <h3 className="text-zinc-400 text-xs font-bold tracking-widest uppercase mb-1">TRIP LOG</h3>
+          <div className="text-2xl font-bold text-white mb-4">{tripLog.title}</div>
           
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <div className="text-zinc-500 text-xs">DURATION</div>
-              <div className="text-xl font-mono text-white">{tripLog.duration}</div>
+              <div className="text-zinc-500 text-xs">DATE</div>
+              <div className="text-lg font-mono text-white">{tripLog.date}</div>
             </div>
             <div>
-              <div className="text-zinc-500 text-xs">POINTS</div>
-              <div className="text-xl font-mono text-white">{tripLog.trackPoints.length}</div>
+              <div className="text-zinc-500 text-xs">DURATION</div>
+              <div className="text-lg font-mono text-white">{tripLog.duration}</div>
             </div>
           </div>
         </div>
