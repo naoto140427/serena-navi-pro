@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import Map, { Source, Layer, type MapRef } from 'react-map-gl';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, Mountain, ArrowLeft, Loader2, Play, Pause, FastForward, RotateCcw } from 'lucide-react';
 import { parseGPX, type MultiDayTripLog } from '../utils/gpxParser';
 import { useNavStore } from '../store/useNavStore';
@@ -22,23 +22,23 @@ export const JournalPage: React.FC = () => {
 
   // Animation States
   const [isPlaying, setIsPlaying] = useState(false);
-  const currentIdxRef = useRef(0); // レンダリングをトリガーしないRef管理
+  const currentIdxRef = useRef(0);
   const [playbackSpeed, setPlaybackSpeed] = useState(0.05);
   
-  // UI更新用（頻度を下げる）
+  // UI Throttling
   const [displayTime, setDisplayTime] = useState<string>("--:--");
   const [displayProgress, setDisplayProgress] = useState(0);
-  
-  const animationRef = useRef<number | null>(null);
-  const lastUiUpdateRef = useRef<number>(0); // UI更新の間引き用
+  const lastUiUpdateRef = useRef<number>(0);
 
-  // 現在選択されている日のデータ
+  const animationRef = useRef<number | null>(null);
+
+  // 現在のDayデータ
   const currentDayLog = useMemo(() => {
     if (!tripData) return null;
     return tripData.days[selectedDayIndex];
   }, [tripData, selectedDayIndex]);
 
-  // Day切り替え時の処理
+  // Day切り替え時のリセット処理
   useEffect(() => {
     if (currentDayLog && mapRef.current) {
       setIsPlaying(false);
@@ -47,16 +47,15 @@ export const JournalPage: React.FC = () => {
       
       const startPt = currentDayLog.trackPoints[0];
       
-      // カメラ移動
       mapRef.current.flyTo({
         center: [startPt.lon, startPt.lat],
         zoom: 13,
-        pitch: 0,
+        pitch: 60,
         bearing: 0,
         duration: 2000
       });
 
-      // カーソル位置リセット (GeoJSON Source更新)
+      // マーカー位置リセット
       const source = mapRef.current.getSource('cursor-source') as any;
       if (source) {
         source.setData({
@@ -76,9 +75,7 @@ export const JournalPage: React.FC = () => {
         const text = await response.text();
         const log = parseGPX(text);
         setTripData(log);
-        if (log.days.length > 0) {
-            setSelectedDayIndex(log.days.length - 1);
-        }
+        if (log.days.length > 0) setSelectedDayIndex(log.days.length - 1);
       } catch (err) {
         console.error('Failed to load GPX', err);
         setError('ログ読み込み失敗');
@@ -98,7 +95,7 @@ export const JournalPage: React.FC = () => {
     return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
   };
 
-  // 🚀 Apple流: WebGL最適化アニメーションループ
+  // 🚀 高性能アニメーションループ
   const animate = useCallback((timestamp: number) => {
     if (!currentDayLog || !mapRef.current) return;
 
@@ -122,7 +119,7 @@ export const JournalPage: React.FC = () => {
     const currentLat = lerp(p1.lat, p2.lat, t);
     const currentLon = lerp(p1.lon, p2.lon, t);
 
-    // 1. WebGLレイヤーのソースを直接更新 (DOM操作より圧倒的に軽い)
+    // 1. WebGLマーカー更新
     const source = mapRef.current.getSource('cursor-source') as any;
     if (source) {
       source.setData({
@@ -131,23 +128,29 @@ export const JournalPage: React.FC = () => {
       });
     }
 
-    // 2. カメラ制御 (jumpToで瞬時に追従)
+    // 2. スマートカメラ制御
     const lookAheadDistance = Math.max(20, playbackSpeed * 200); 
     const lookAheadIdx = Math.min(idxFloor + Math.floor(lookAheadDistance), currentDayLog.trackPoints.length - 1);
     const pLook = currentDayLog.trackPoints[lookAheadIdx];
-    const targetZoom = Math.max(10, 14.5 - (playbackSpeed * 3)); // 速度が出たらもっと引く
+    
+    // 速度に応じてズームとピッチを動的に変える（Adaptive Camera）
+    // 遅い時: Zoom 14.5, Pitch 50 (俯瞰)
+    // 速い時: Zoom 11.0, Pitch 75 (疾走感)
+    const speedFactor = Math.min(1, playbackSpeed / 1.0); // 0.0 ~ 1.0
+    const targetZoom = lerp(14.5, 11.0, speedFactor);
+    const targetPitch = lerp(50, 75, speedFactor);
 
     if (pLook) {
       const bearing = calculateBearing(currentLat, currentLon, pLook.lat, pLook.lon);
       mapRef.current.getMap().jumpTo({
         center: [currentLon, currentLat],
         bearing: bearing,
-        pitch: 60,
+        pitch: targetPitch,
         zoom: targetZoom
       });
     }
 
-    // 3. UI更新の間引き (300msに1回だけReactを動かす)
+    // 3. UI更新間引き (300ms)
     if (timestamp - lastUiUpdateRef.current > 300) {
       setDisplayTime(p1.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       setDisplayProgress(nextIdx);
@@ -163,7 +166,7 @@ export const JournalPage: React.FC = () => {
     return () => { if (animationRef.current !== null) cancelAnimationFrame(animationRef.current); };
   }, [isPlaying, animate]);
 
-  // GeoJSON (ルートライン)
+  // ルートラインGeoJSON
   const routeGeoJson = useMemo(() => {
     if (!currentDayLog) return null;
     return {
@@ -176,13 +179,10 @@ export const JournalPage: React.FC = () => {
     };
   }, [currentDayLog]);
 
-  // 初期カーソル位置 (レンダリング用)
-  const initialCursorGeoJson = useMemo(() => {
-    return {
-      type: 'Feature',
-      geometry: { type: 'Point', coordinates: [0, 0] } // 最初は適当、ロード後に更新
-    };
-  }, []);
+  const initialCursorGeoJson = useMemo(() => ({
+    type: 'Feature',
+    geometry: { type: 'Point', coordinates: [0, 0] }
+  }), []);
 
   const cycleSpeed = () => {
     setPlaybackSpeed(prev => {
@@ -197,7 +197,7 @@ export const JournalPage: React.FC = () => {
   if (error || !tripData) return <div className="min-h-screen bg-black text-white p-8">{error}</div>;
 
   return (
-    <div className="h-screen w-full relative bg-black overflow-hidden">
+    <div className="h-screen w-full relative bg-black overflow-hidden group">
       
       {/* 🗺️ MAP */}
       <Map
@@ -207,6 +207,13 @@ export const JournalPage: React.FC = () => {
         mapStyle={viewMode === 'velocity' ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/satellite-streets-v12"}
         mapboxAccessToken={MAPBOX_TOKEN}
         terrain={viewMode === 'altitude' ? { source: 'mapbox-dem', exaggeration: 1.5 } : undefined}
+        // 空気感の演出 (Fog & Sky)
+        fog={{
+          "range": [1, 10],
+          "color": "#0a0a0a",
+          "horizon-blend": 0.2,
+          "high-color": "#222" // 空の色
+        }}
       >
         {viewMode === 'altitude' && <Source id="mapbox-dem" type="raster-dem" url="mapbox://mapbox.mapbox-terrain-dem-v1" tileSize={512} maxzoom={14} />}
         
@@ -218,73 +225,68 @@ export const JournalPage: React.FC = () => {
           </Source>
         )}
 
-        {/* 🚗 カーソル (WebGLレイヤーとして描画) */}
+        {/* 🚗 カーソル (WebGL) */}
         <Source id="cursor-source" type="geojson" data={initialCursorGeoJson as any}>
-           {/* 外側の光 */}
-           <Layer 
-             id="cursor-glow" 
-             type="circle" 
-             paint={{
-               'circle-radius': 15,
-               'circle-color': '#007AFF',
-               'circle-opacity': 0.4,
-               'circle-blur': 0.5
-             }} 
-           />
-           {/* 中心のドット */}
-           <Layer 
-             id="cursor-dot" 
-             type="circle" 
-             paint={{
-               'circle-radius': 6,
-               'circle-color': '#FFFFFF',
-               'circle-stroke-width': 2,
-               'circle-stroke-color': '#007AFF'
-             }} 
-           />
+           <Layer id="cursor-glow" type="circle" paint={{'circle-radius': 20, 'circle-color': '#007AFF', 'circle-opacity': 0.3, 'circle-blur': 1}} />
+           <Layer id="cursor-dot" type="circle" paint={{'circle-radius': 6, 'circle-color': '#FFFFFF', 'circle-stroke-width': 2, 'circle-stroke-color': '#007AFF'}} />
         </Source>
       </Map>
 
-      {/* 🎮 UI: Top Bar */}
-      <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-start pointer-events-none z-10">
-        <motion.button onClick={() => setAppMode('launcher')} className="pointer-events-auto w-12 h-12 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white hover:bg-white/10">
-          <ArrowLeft size={20} />
-        </motion.button>
+      {/* 🎬 Cinematic Letterbox (黒帯) */}
+      <AnimatePresence>
+        {isPlaying && (
+          <>
+            <motion.div 
+              initial={{ height: 0 }} animate={{ height: '10vh' }} exit={{ height: 0 }}
+              className="absolute top-0 left-0 right-0 bg-black z-20 pointer-events-none"
+            />
+            <motion.div 
+              initial={{ height: 0 }} animate={{ height: '10vh' }} exit={{ height: 0 }}
+              className="absolute bottom-0 left-0 right-0 bg-black z-20 pointer-events-none"
+            />
+          </>
+        )}
+      </AnimatePresence>
 
-        <motion.div className="pointer-events-auto bg-black/50 backdrop-blur-xl border border-white/10 rounded-full p-1 flex gap-1">
-          <button onClick={() => setViewMode('velocity')} className={`px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 ${viewMode === 'velocity' ? 'bg-blue-600 text-white' : 'text-zinc-400'}`}><Activity size={14} /> Velocity</button>
-          <button onClick={() => setViewMode('altitude')} className={`px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 ${viewMode === 'altitude' ? 'bg-orange-500 text-white' : 'text-zinc-400'}`}><Mountain size={14} /> Altitude</button>
-        </motion.div>
-      </div>
+      {/* UI Overlay (再生中は薄くなる) */}
+      <motion.div 
+        className="absolute inset-0 pointer-events-none"
+        animate={{ opacity: isPlaying ? 0 : 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        {/* Top Bar */}
+        <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-start z-30">
+          <motion.button onClick={() => setAppMode('launcher')} className="pointer-events-auto w-12 h-12 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white hover:bg-white/10">
+            <ArrowLeft size={20} />
+          </motion.button>
 
-      {/* 📅 Day Selector */}
-      <div className="absolute top-24 left-0 right-0 flex justify-center z-10 pointer-events-none">
-        <motion.div 
-          initial={{ y: -20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          className="pointer-events-auto bg-black/70 backdrop-blur-xl border border-white/10 rounded-2xl p-1.5 flex gap-1 shadow-2xl overflow-x-auto max-w-[90vw]"
-        >
-          {tripData.days.map((day, idx) => (
-            <button
-              key={day.date}
-              onClick={() => setSelectedDayIndex(idx)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-                selectedDayIndex === idx 
-                  ? 'bg-white text-black shadow-lg' 
-                  : 'text-zinc-400 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <div className="flex flex-col items-center">
-                <span className="opacity-50 text-[10px] uppercase">DAY {idx + 1}</span>
-                <span>{day.date.slice(5)}</span>
-              </div>
-            </button>
-          ))}
-        </motion.div>
-      </div>
+          <motion.div className="pointer-events-auto bg-black/50 backdrop-blur-xl border border-white/10 rounded-full p-1 flex gap-1">
+            <button onClick={() => setViewMode('velocity')} className={`px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 ${viewMode === 'velocity' ? 'bg-blue-600 text-white' : 'text-zinc-400'}`}><Activity size={14} /> Velocity</button>
+            <button onClick={() => setViewMode('altitude')} className={`px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 ${viewMode === 'altitude' ? 'bg-orange-500 text-white' : 'text-zinc-400'}`}><Mountain size={14} /> Altitude</button>
+          </motion.div>
+        </div>
 
-      {/* 🎬 Bottom Controls */}
-      <div className="absolute bottom-10 left-6 right-6 flex flex-col items-center gap-4 pointer-events-none z-10">
+        {/* Day Selector */}
+        <div className="absolute top-24 left-0 right-0 flex justify-center z-30">
+          <motion.div className="pointer-events-auto bg-black/70 backdrop-blur-xl border border-white/10 rounded-2xl p-1.5 flex gap-1 shadow-2xl overflow-x-auto max-w-[90vw]">
+            {tripData.days.map((day, idx) => (
+              <button
+                key={day.date}
+                onClick={() => setSelectedDayIndex(idx)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${selectedDayIndex === idx ? 'bg-white text-black shadow-lg' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`}
+              >
+                <div className="flex flex-col items-center">
+                  <span className="opacity-50 text-[10px] uppercase">DAY {idx + 1}</span>
+                  <span>{day.date.slice(5)}</span>
+                </div>
+              </button>
+            ))}
+          </motion.div>
+        </div>
+      </motion.div>
+
+      {/* 🎬 Bottom Controls (Always visible but styled differently) */}
+      <div className={`absolute bottom-10 left-6 right-6 flex flex-col items-center gap-4 z-30 transition-all duration-500 ${isPlaying ? 'translate-y-[-5vh] opacity-80 hover:opacity-100' : ''}`}>
         
         <div className="pointer-events-auto bg-black/60 backdrop-blur-xl border border-white/10 rounded-full px-6 py-4 flex items-center gap-6 shadow-2xl">
           <button onClick={() => { setIsPlaying(false); currentIdxRef.current = 0; setDisplayProgress(0); }} className="text-zinc-400 hover:text-white"><RotateCcw size={20} /></button>
@@ -296,20 +298,13 @@ export const JournalPage: React.FC = () => {
           </button>
         </div>
 
+        {/* Info Bar - Show only when needed or simplified */}
         <div className="w-full max-w-2xl bg-black/40 backdrop-blur-md rounded-2xl p-4 border border-white/5 flex items-center gap-4">
-           <div className="text-xs font-mono text-zinc-400 w-12">
-             {displayTime}
-           </div>
+           <div className="text-xs font-mono text-zinc-400 w-12">{displayTime}</div>
            <div className="flex-1 h-1 bg-zinc-800 rounded-full overflow-hidden relative">
-             <motion.div 
-                className="absolute top-0 bottom-0 left-0 bg-blue-500" 
-                // プログレスバーもReactの更新を待たずに動かすのは難しいので、ここだけはカクついても良いとする
-                style={{ width: `${(displayProgress / (currentDayLog?.trackPoints.length || 1)) * 100}%` }} 
-             />
+             <motion.div className="absolute top-0 bottom-0 left-0 bg-blue-500" style={{ width: `${(displayProgress / (currentDayLog?.trackPoints.length || 1)) * 100}%` }} />
            </div>
-           <div className="text-xs font-mono text-zinc-400 w-24 text-right">
-             {currentDayLog?.duration}
-           </div>
+           <div className="text-xs font-mono text-zinc-400 w-24 text-right">{currentDayLog?.duration}</div>
         </div>
       </div>
     </div>
