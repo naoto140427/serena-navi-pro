@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { db } from '../lib/firebase';
 import { ref, onValue, set as firebaseSet, remove, push, update } from 'firebase/database';
-import type { NavState, Waypoint, Expense, AppNotification } from '../types';
+import type { NavState, Waypoint, Expense, AppNotification, AppMode } from '../types';
 import { initialGeoFences, type GeoFence } from '../data/geoFences';
 
 interface NavActions {
@@ -18,6 +18,7 @@ interface NavActions {
   resetGeoFences: () => void;
   resetAllData: () => void;
   refreshRouteData: () => void;
+  setAppMode: (mode: AppMode) => void; // 追加
 }
 
 const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number) => {
@@ -32,14 +33,15 @@ const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: numbe
 };
 
 const guessLocationName = (_lat: number, lng: number) => {
-  if (lng < 131.0) return "福岡県 / 関門エリア";
-  if (lng < 131.8) return "大分県内"; 
-  if (lng < 132.5) return "山口県 / 岩国周辺";
-  if (lng < 133.5) return "広島県内";
-  if (lng < 134.5) return "岡山県内";
-  if (lng < 135.5) return "兵庫県 / 大阪府";
-  if (lng < 136.0) return "京都府 / 滋賀県";
-  if (lng < 137.0) return "三重県 / 伊勢エリア";
+  if (lng < 130.5) return "福岡県";
+  if (lng < 131.5) return "大分県 / 宮河内"; 
+  if (lng < 132.0) return "大分県 / 佐賀関";
+  if (lng < 132.5) return "愛媛県 / 佐田岬";
+  if (lng < 133.0) return "愛媛県 / 松山道";
+  if (lng < 134.0) return "香川県 / 高松道";
+  if (lng < 134.8) return "徳島県 / 鳴門";
+  if (lng < 135.0) return "兵庫県 / 淡路島";
+  if (lng < 135.5) return "兵庫県 / 神戸";
   return "Highway Cruising";
 };
 
@@ -50,171 +52,95 @@ interface ExtendedNavState extends NavState {
 export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => ({
   mode: 'driver',
   currentUser: null,
-  currentLocation: { lat: 33.1916, lng: 131.7021 },
+  currentLocation: { lat: 34.805, lng: 135.350 }, // 宝塚付近
   currentSpeed: 0,
   currentAreaText: "READY TO DEPART",
   nearestFacilityText: "GPS信号 待機中...",
-  todaysGoalText: "目的地計算中...",
+  todaysGoalText: "フェリー出港まで...",
   nextWaypointEta: "--:--",
   activeNotification: null,
   expenses: [],
   trafficInfo: { riskLevel: 0, jamDistance: 0, nextReg: '順調' },
   geoFences: initialGeoFences,
+  appMode: 'launcher', // 初期値
 
+  // Waypoints定義 (既存のもの)
   waypoints: [
     { 
-      id: 'start', name: 'Start: 宮河内', coords: { lat: 33.1916, lng: 131.7021 }, type: 'start',
-      description: '伝説の始まり。全ての準備は整った。',
-      image: 'https://images.unsplash.com/photo-1511527661048-7fe73d85e9a4?q=80&w=800',
-      quests: ['戸締まり・火の元よし', '財布・スマホよし', 'ETCカードよし'],
+      id: 'start', name: 'Start: 宝塚IC', coords: { lat: 34.805, lng: 135.350 }, type: 'start',
+      description: '伝説の旅、フィナーレへ。四国経由で帰還せよ。',
+      image: 'https://images.unsplash.com/photo-1565675402246-86d708f50c76?q=80&w=800',
+      quests: ['高松道ルート確認', 'フェリー運行状況チェック'],
       specs: { toilet: 'clean', smoking: true, vending: true },
-      weather: { type: 'cloudy', temp: '8°C' },
-      scheduledTime: '20:00'
-    },
-    { id: 'pick_haga', name: 'Pick: 芳賀', coords: { lat: 33.2050, lng: 131.7050 }, type: 'pickup', scheduledTime: '20:15' },
-    { id: 'pick_taira', name: 'Pick: 平良', coords: { lat: 33.2436, lng: 131.6418 }, type: 'pickup', scheduledTime: '20:45' },
-    { 
-      id: 'kanmon', name: '関門橋 (めかりPA)', coords: { lat: 33.9598, lng: 130.9616 }, type: 'parking',
-      description: '九州脱出ポイント。夜景を見ながら最後の作戦会議。',
-      image: 'https://images.unsplash.com/photo-1617441865952-4e4f26040714?q=80&w=800',
-      quests: ['橋をバックに記念撮影', '眠気覚ましのコーヒー調達'],
-      driverIntel: { parking: '大型トラック多し。駐車枠内の接触に注意。', road: 'ここから本州。風が強い日はハンドル取られるので注意。' },
-      specs: { toilet: 'normal', smoking: true, vending: true },
-      weather: { type: 'sunny', temp: '6°C' },
-      scheduledTime: '22:30'
+      weather: { type: 'cloudy', temp: '9°C' },
+      scheduledTime: '14:45'
     },
     { 
-      id: 'ise_jingu', name: '伊勢神宮 内宮', coords: { lat: 34.4560, lng: 136.7250 }, type: 'sightseeing',
-      description: '日本最強のパワースポット。2000年の歴史。',
-      image: 'https://images.unsplash.com/photo-1572935260193-27150098df24?q=80&w=800',
+      id: 'awaji_sa', name: '🌉 淡路SA (下り)', coords: { lat: 34.6067, lng: 135.0117 }, type: 'parking',
+      description: '明石海峡大橋を渡ってすぐ。絶景のスタバ休憩。',
+      image: 'https://images.unsplash.com/photo-1596545738622-540c15383501?q=80&w=800',
+      quests: ['橋バックで記念撮影', '明石焼き食べる？'],
+      driverIntel: { parking: 'とんでもなく広い。観覧車を目印に。', road: '風が強い日は橋の上でハンドル取られるので注意。' },
+      gourmet: { item: '淡路玉ねぎスープ', price: '¥0', tip: 'お土産コーナーで試飲ができるかも。' },
+      specs: { toilet: 'clean', smoking: true, vending: true },
+      weather: { type: 'sunny', temp: '11°C' },
+      scheduledTime: '15:20'
+    },
+    { 
+      id: 'tsuda_sa', name: '🍜 津田の松原SA', coords: { lat: 34.2835, lng: 134.2562 }, type: 'parking',
+      description: '香川県突入。高速降りずに讃岐うどん。',
+      image: 'https://images.unsplash.com/photo-1621235332306-69f3797621c4?q=80&w=800',
       budget: '¥',
-      quests: ['五十鈴川で手を清める', '正宮で感謝のみを伝える', '交通安全のお守りを買う'],
-      driverIntel: { parking: 'A駐車場は激混み&狭い。遠くてもB駐車場を狙え。', road: 'IC降りてからの合流が短いので加速しっかり。' },
-      specs: { toilet: 'clean', smoking: false, vending: false },
+      quests: ['「あなぶき家」でうどん', 'ちくわ天トッピング'],
+      gourmet: { item: 'かけうどん', price: '¥450', tip: 'SAのレベルを超えてる。コシが命。' },
+      driverIntel: { parking: 'そこまで混んでない穴場。松林が見える。', road: '高松道はオービス多め。飛ばしすぎ注意。' },
+      specs: { toilet: 'normal', smoking: true, vending: true },
       weather: { type: 'sunny', temp: '12°C' },
-      scheduledTime: '10:00'
+      scheduledTime: '16:50'
     },
     { 
-      id: 'okage', name: 'おかげ横丁', coords: { lat: 34.4631, lng: 136.7228 }, type: 'sightseeing',
-      description: '食の欲望解放区。内宮のすぐ横。',
-      image: 'https://images.unsplash.com/photo-1599405658603-9e900d23ec1d?q=80&w=800',
-      budget: '¥¥',
-      quests: ['食い倒れる', '土産を買う'],
-      gourmet: { item: '赤福本店「盆」', price: '¥300', tip: '回転早いので並べ。冬なら赤福ぜんざいもアリ。' },
-      specs: { toilet: 'normal', smoking: true, vending: true },
-      weather: { type: 'sunny', temp: '13°C' },
-      scheduledTime: '12:00'
-    },
-    { 
-      id: 'vison_onsen', name: '♨️ VISON 本草湯', coords: { lat: 34.4667, lng: 136.5222 }, type: 'parking',
-      description: '三重の最新リゾートにある薬草湯。',
-      image: 'https://images.unsplash.com/photo-1634914040989-11c2780b957e?q=80&w=800',
-      budget: '¥',
-      quests: ['薬草湯で深呼吸', '外気浴で整う'],
-      driverIntel: { parking: '風呂利用なら「本草湯」最寄りのP8へ。広大なので間違えると歩く。', road: 'スマートIC直結。ETCカード確認。' },
+      id: 'iyonada_sa', name: '🌇 伊予灘SA', coords: { lat: 33.7258, lng: 132.7303 }, type: 'parking',
+      description: '夕焼けの聖地。フェリー前の最終ピットイン。',
+      image: 'https://images.unsplash.com/photo-1622365289947-66914b306155?q=80&w=800',
+      quests: ['伊予灘の夕景/夜景', 'じゃこ天購入'],
+      driverIntel: { parking: '高台にあるので景色最高。フェリーまであと1.5時間。', road: 'ここを出たら大洲ICまで行ってメロディーラインへ。' },
       specs: { toilet: 'clean', smoking: true, vending: true },
-      weather: { type: 'cloudy', temp: '10°C' },
-      scheduledTime: '15:00'
+      weather: { type: 'sunny', temp: '10°C' },
+      scheduledTime: '18:50'
     },
     { 
-      id: 'matsusaka_beef', name: '🥩 一升びん本店', coords: { lat: 34.5684, lng: 136.5401 }, type: 'sightseeing',
-      description: '回転焼肉の聖地。味噌ダレ松阪牛。',
-      image: 'https://images.unsplash.com/photo-1558030006-450675393462?q=80&w=800',
-      budget: '¥¥¥',
-      quests: ['A5肉を拝む', '白米おかわり'],
-      gourmet: { item: '松阪牛セット', price: '¥3500~', tip: '服に匂いがつくので上着は車に置くのがプロ。' },
-      driverIntel: { parking: '店前は狭い。第二駐車場の方が安全。', road: '夜は看板が見えにくいのでCo-Pilotが注視せよ。' },
-      specs: { toilet: 'normal', smoking: true, vending: false },
-      weather: { type: 'rain', temp: '8°C' },
-      scheduledTime: '18:00'
-    },
-    { 
-      id: 'dormy_inn_tsu', name: '🏨 ドーミーイン津', coords: { lat: 34.7332, lng: 136.5117 }, type: 'hotel', scheduledTime: '21:00',
-      description: 'DAY 1 GOAL. サウナで整え。', 
-      image: 'https://images.unsplash.com/photo-1560185127-6ed189bf02f4?q=80&w=800',
-      quests: ['夜鳴きそば', '朝風呂'],
-      specs: { toilet: 'clean', smoking: true, vending: true },
-      weather: { type: 'cloudy', temp: '5°C' }
-    },
-    { 
-      id: 'metasequoia', name: '🌲 メタセコイア並木', coords: { lat: 35.4568, lng: 136.0355 }, type: 'sightseeing',
-      description: '冬のソナタ的絶景ロード。早朝アタック推奨。',
-      image: 'https://images.unsplash.com/photo-1542358896-7e3e4a9e5251?q=80&w=800',
-      quests: ['並木道で愛車撮影', 'マキノピックランド'],
-      driverIntel: { parking: '「マキノピックランド」駐車場が無料。路駐は絶対NG。', road: '冬は積雪エリア。ノーマルタイヤならライブカメラ要確認。' },
-      specs: { toilet: 'normal', smoking: true, vending: true },
-      weather: { type: 'snow', temp: '2°C' },
-      scheduledTime: '09:30'
-    },
-    { 
-      id: 'kyoto_kiyomizu', name: '⛩️ 京都・清水寺', coords: { lat: 34.9948, lng: 135.7850 }, type: 'sightseeing',
-      description: '京都の象徴。清水の舞台から飛び降りるつもりで楽しめ。',
-      image: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=800',
+      id: 'misaki_port', name: '⛴️ 国道九四フェリー 三崎港', coords: { lat: 33.3931, lng: 132.1225 }, type: 'sightseeing',
+      description: '四国の最西端。ここから九州へワープ。',
+      image: 'https://images.unsplash.com/photo-1559868350-136511a0b368?q=80&w=800',
       budget: '¥¥',
-      quests: ['清水の舞台で写真', '音羽の滝で水を飲む', '二年坂で食べ歩き'],
-      gourmet: { item: '湯豆腐 or 抹茶スイーツ', price: '¥1500', tip: '参道の誘惑に負けるな。奥まで行けば絶景カフェあり。' },
-      driverIntel: { parking: '清水寺周辺は地獄の混雑＆一方通行。少し離れた「五条坂」周辺のコインパ推奨。', road: '歩行者が神。絶対に徐行。' },
+      quests: ['乗船手続き', 'ドライバー仮眠'],
+      driverIntel: { parking: '誘導員の指示に従って整列。車検証の準備を忘れずに。', road: 'メロディーラインは夜真っ暗＆動物注意。' },
+      specs: { toilet: 'normal', smoking: true, vending: true },
+      weather: { type: 'cloudy', temp: '9°C' },
+      scheduledTime: '20:50'
+    },
+    { 
+      id: 'ferry_rest', name: '🚢 船内休憩 (70分)', coords: { lat: 33.32, lng: 132.0 }, type: 'parking',
+      description: '運転なしのボーナスタイム。佐賀関まで爆睡。',
+      image: 'https://images.unsplash.com/photo-1502479532599-7f309a657c96?q=80&w=800',
+      quests: ['雑魚寝エリア確保', '甲板で星を見る'],
       specs: { toilet: 'normal', smoking: false, vending: true },
-      weather: { type: 'sunny', temp: '14°C' },
-      scheduledTime: '13:00'
+      weather: { type: 'night', temp: '8°C' },
+      scheduledTime: '21:30'
     },
     { 
-      id: 'nara_park', name: '🦌 奈良公園・東大寺', coords: { lat: 34.6850, lng: 135.8430 }, type: 'sightseeing',
-      description: '鹿の帝国＆世界最大級の木造建築。奈良に来たなら必須。',
-      image: 'https://images.unsplash.com/photo-1579405625345-d86b97666272?q=80&w=800',
-      budget: '¥',
-      quests: ['大仏殿で圧倒される', '柱の穴くぐり', '鹿せんべい課金'],
-      driverIntel: { parking: '県営駐車場が安牌だが混む。少し離れたコインパ推奨。', road: '鹿の飛び出し注意（マジで出る）。' },
-      specs: { toilet: 'normal', smoking: false, vending: true },
-      weather: { type: 'sunny', temp: '15°C' },
-      scheduledTime: '16:00'
-    },
-    { 
-      id: 'arima_onsen', name: '♨️ 有馬温泉 金の湯', coords: { lat: 34.7968, lng: 135.2478 }, type: 'parking',
-      description: '日本最古の湯。金泉はタオルが茶色くなる。',
-      image: 'https://images.unsplash.com/photo-1549643276-fbc2bd5259d4?q=80&w=800',
-      budget: '¥¥',
-      quests: ['金泉に10分浸かる', 'ありまサイダー飲む'],
-      driverIntel: { parking: '温泉街は道が激狭。無理せず「有馬里駐車場」に入れて送迎バスを使え。', road: '坂道発進多し。' },
-      gourmet: { item: '竹中肉店コロッケ', price: '¥150', tip: '揚げたてを狙え。' },
-      specs: { toilet: 'clean', smoking: false, vending: true },
-      weather: { type: 'cloudy', temp: '11°C' },
-      scheduledTime: '19:00'
-    },
-    { 
-      id: 'kobe_hotel', name: '🏨 カンデオホテルズ神戸', coords: { lat: 34.6908, lng: 135.1914 }, type: 'hotel',
-      description: '天空のスカイスパ完備。神戸の夜景を一望。',
-      image: 'https://images.unsplash.com/photo-1625244724120-1fd1d34d00f6?q=80&w=800',
-      quests: ['スカイスパで夜景鑑賞', '朝食ビュッフェ制覇'],
-      driverIntel: { parking: '提携駐車場ありだが、高さ制限に注意。要確認。', road: '一方通行多し。ナビ絶対遵守。' },
-      specs: { toilet: 'clean', smoking: true, vending: true },
-      weather: { type: 'rain', temp: '9°C' },
-      scheduledTime: '21:00'
-    },
-    { 
-      id: 'hiroshima_okonomi', name: '🍴 広島お好み村', coords: { lat: 34.3915, lng: 132.4630 }, type: 'sightseeing',
-      description: '粉もんタワー。',
-      image: 'https://images.unsplash.com/photo-1582236592263-471239845942?q=80&w=800',
-      budget: '¥¥',
-      quests: ['ヘラで直食い', 'カープソース堪能'],
-      gourmet: { item: 'そば肉玉（イカ天）', price: '¥900', tip: '「あとむ」か「八昌」が鉄板。マヨは邪道扱いされる店もあるので空気読め。' },
-      driverIntel: { parking: '繁華街ど真ん中。高い。少し離れた「ヤマダ電機」提携等が安いかも。', road: '路面電車と並走。右折時注意。' },
-      specs: { toilet: 'normal', smoking: false, vending: false },
-      weather: { type: 'sunny', temp: '14°C' },
-      scheduledTime: '12:00'
-    },
-    { 
-      id: 'kanmon_return', name: '関門橋 (帰還)', coords: { lat: 33.9598, lng: 130.9616 }, type: 'parking',
-      description: 'ただいま九州。旅の終わり。',
-      image: 'https://images.unsplash.com/photo-1550953685-5a43924e2373?q=80&w=800',
-      quests: ['残金確認', '運転手に感謝'],
+      id: 'saganoseki', name: '🏁 佐賀関港 (大分)', coords: { lat: 33.2558, lng: 131.8617 }, type: 'start',
+      description: '九州上陸。帰ってきた。',
+      image: 'https://images.unsplash.com/photo-1565613387859-968987483750?q=80&w=800',
+      quests: ['安全運転でラストスパート', '関あじ関さばの看板を見る'],
+      driverIntel: { parking: '下船時は前の車に続いて速やかに。', road: '宮河内までは一本道。' },
       specs: { toilet: 'normal', smoking: true, vending: true },
-      weather: { type: 'cloudy', temp: '10°C' },
-      scheduledTime: '16:00'
+      weather: { type: 'cloudy', temp: '8°C' },
+      scheduledTime: '22:40'
     },
-    { id: 'goal', name: 'Goal: 自宅', coords: { lat: 33.1916, lng: 131.7021 }, type: 'goal', scheduledTime: '19:00' },
+    { id: 'goal', name: 'Goal: 自宅 (宮河内)', coords: { lat: 33.1916, lng: 131.7021 }, type: 'goal', scheduledTime: '23:30' },
   ],
-  nextWaypoint: { id: 'pick_haga', name: 'Pick: 芳賀 (丹川)', coords: { lat: 33.2050, lng: 131.7050 }, type: 'pickup' } as Waypoint,
+  nextWaypoint: { id: 'awaji_sa', name: '🌉 淡路SA (下り)', coords: { lat: 34.6067, lng: 135.0117 }, type: 'parking' } as Waypoint,
 
   setMode: (mode) => set({ mode }),
   setCurrentUser: (name) => set({ currentUser: name }),
@@ -235,6 +161,8 @@ export const useNavStore = create<ExtendedNavState & NavActions>((set, get) => (
       });
     }
   },
+
+  setAppMode: (mode) => set({ appMode: mode }),
 
   initializeSync: () => {
     const notifRef = ref(db, 'state/activeNotification');

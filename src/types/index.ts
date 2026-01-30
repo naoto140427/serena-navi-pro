@@ -1,63 +1,45 @@
-export interface NavState {
-  mode: 'driver' | 'passenger';
-  currentUser: string | null;
-  currentLocation: { lat: number; lng: number };
-  currentSpeed: number;
-  currentAreaText: string;
-  nearestFacilityText: string;
-  todaysGoalText: string;
-  nextWaypointEta: string;
-  activeNotification: AppNotification | null;
-  expenses: Expense[];
-  trafficInfo?: {
-    riskLevel: number;
-    jamDistance: number;
-    nextReg: string;
-  };
-  waypoints: Waypoint[];
-  nextWaypoint: Waypoint | null;
+export interface Coordinates {
+  lat: number;
+  lng: number;
 }
-
-// src/types/index.ts
 
 export interface Waypoint {
   id: string;
   name: string;
-  coords: { lat: number; lng: number };
-  type: 'start' | 'pickup' | 'parking' | 'sightseeing' | 'hotel' | 'goal';
-  description?: string; 
+  coords: Coordinates;
+  // hotel, pickup を追加
+  type: 'start' | 'goal' | 'parking' | 'sightseeing' | 'food' | 'gas' | 'hotel' | 'pickup';
+  description?: string;
   image?: string;
-  address?: string;
-  time?: string;
-  eta?: string;
-  quests?: string[];
-  tips?: string;
   budget?: string;
-  
+  quests?: string[];
   driverIntel?: {
-    parking: string;
+    parking?: string;
     road?: string;
+    tips?: string;
   };
-  
   gourmet?: {
     item: string;
-    price?: string;
-    tip?: string;
+    price: string;
+    tip: string;
   };
-
   specs?: {
     toilet: 'clean' | 'normal' | 'none';
     smoking: boolean;
     vending: boolean;
   };
-
-  // ★今回追加: 天気とスケジュール
   weather?: {
-    type: 'sunny' | 'cloudy' | 'rain' | 'snow';
-    temp: string; // "12°C"
+    // rain を追加
+    type: 'sunny' | 'cloudy' | 'rainy' | 'rain' | 'snow' | 'night';
+    temp: string;
   };
-  scheduledTime?: string; // "14:00" (予定時刻)
+  scheduledTime?: string;
+  // address, eta, time を追加 (TimelineItemなどで使用)
+  address?: string;
+  eta?: string;
+  time?: string;
 }
+
 export interface Expense {
   id: string;
   title: string;
@@ -66,20 +48,62 @@ export interface Expense {
   timestamp: number;
 }
 
+export interface TrafficInfo {
+  riskLevel: number;
+  jamDistance: number;
+  nextReg: string;
+}
+
+export interface NavState {
+  mode: 'driver' | 'passenger';
+  currentUser: string | null;
+  currentLocation: Coordinates;
+  currentSpeed: number;
+  currentAreaText: string;
+  nearestFacilityText: string;
+  todaysGoalText: string;
+  nextWaypointEta: string;
+  activeNotification: AppNotification | null;
+  waypoints: Waypoint[];
+  nextWaypoint: Waypoint | null;
+  expenses: Expense[];
+  trafficInfo: TrafficInfo;
+  appMode: AppMode;
+}
+
 export interface AppNotification {
   id: string;
-  // ★ 'warning' を追加
-  type: 'rest' | 'music' | 'info' | 'warning';
+  // rest, music を追加
+  type: 'info' | 'warning' | 'arrival' | 'chat' | 'rest' | 'music';
   message: string;
   sender: string;
   timestamp: number;
   payload?: any;
 }
 
-// ★ TripData型を追加 (tripData.tsのエラー解消用)
+// TripDataの追加 (tripData.tsで使用)
 export interface TripData {
-  id: string;
-  name: string;
-  date: string;
   waypoints: Waypoint[];
 }
+
+// --- Journal Types ---
+
+export interface TrackPoint {
+  lat: number;
+  lon: number;
+  ele: number;
+  time: Date;
+  speed?: number;
+}
+
+export interface TripLog {
+  id: string;
+  title: string;
+  date: string;
+  distance: number;
+  duration: string;
+  trackPoints: TrackPoint[];
+  waypoints: Waypoint[];
+}
+
+export type AppMode = 'launcher' | 'navigation' | 'journal';

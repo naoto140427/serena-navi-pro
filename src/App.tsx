@@ -1,54 +1,53 @@
 import { useState, useEffect } from 'react';
-import { useNavStore } from './store/useNavStore';
-import { UserSelect } from './components/layout/UserSelect';
-import { BootSequence } from './components/layout/BootSequence';
 import { CockpitPage } from './pages/CockpitPage';
 import { CoPilotPage } from './pages/CoPilotPage';
+import { PassengerHub } from './pages/PassengerHub';
+import { ModeSelectPage } from './pages/ModeSelectPage';
+import { JournalPage } from './pages/JournalPage';
+import { useNavStore } from './store/useNavStore';
+import { Layout } from './components/layout/Layout';
+import { BootSequence } from './components/layout/BootSequence';
 import { useWakeLock } from './hooks/useWakeLock';
-import { GPSWatcher } from './components/widgets/GPSWatcher'; // ★追加
+import { GPSWatcher } from './components/widgets/GPSWatcher';
 
-export const App = () => {
-  const [appState, setAppState] = useState<'boot' | 'select' | 'ready'>('boot');
-  const { initializeSync, mode } = useNavStore();
-  const { requestWakeLock } = useWakeLock();
+function App() {
+  useWakeLock();
+  
+  // Storeから必要なものだけを取り出す
+  const { mode, initializeSync, appMode, setAppMode } = useNavStore();
+  
+  const [booted, setBooted] = useState(false);
 
+  // アプリ起動時のデータ同期
   useEffect(() => {
-    // アプリ起動時の初期化
     initializeSync();
-    
-    // 起動アニメーション用のタイマー
-    const timer = setTimeout(() => {
-      setAppState('select');
-    }, 2500);
+  }, [initializeSync]);
 
-    // 画面スリープ防止
-    const handleInteraction = () => {
-      requestWakeLock();
-    };
-    window.addEventListener('click', handleInteraction);
-    window.addEventListener('touchstart', handleInteraction);
-
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener('click', handleInteraction);
-      window.removeEventListener('touchstart', handleInteraction);
-    };
-  }, [initializeSync, requestWakeLock]);
-
-  // ステートによる画面切り替え
-  if (appState === 'boot') {
-    return <BootSequence onComplete={() => setAppState('select')} />;
+  if (!booted) {
+    return <BootSequence onComplete={() => setBooted(true)} />;
   }
 
-  if (appState === 'select') {
-    return <UserSelect onSelect={() => setAppState('ready')} />;
+  // ランチャー画面
+  if (appMode === 'launcher') {
+    return <ModeSelectPage onSelectMode={(m) => setAppMode(m)} />;
   }
 
-  // ★ここを変更: GPSWatcherを配置して位置情報を監視開始
+  // ジャーナルモード
+  if (appMode === 'journal') {
+    return <JournalPage />;
+  }
+
+  // ナビゲーションモード (Cockpit / CoPilot / Passenger)
   return (
-    <>
+    <Layout>
+      {/* 位置情報監視はNavigationモードでのみ有効にする */}
       <GPSWatcher />
-      {mode === 'driver' ? <CockpitPage /> : <CoPilotPage />}
-    </>
+      
+      {mode === 'driver' ? <CockpitPage /> : 
+       mode === 'passenger' ? <PassengerHub /> : 
+       <CoPilotPage />}
+    </Layout>
   );
-};
+}
+
+export default App;
