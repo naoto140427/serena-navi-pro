@@ -16,19 +16,21 @@ export const JournalPage: React.FC = () => {
   
   const [tripData, setTripData] = useState<MultiDayTripLog | null>(null);
   const [selectedDayIndex, setSelectedDayIndex] = useState(0); 
-  
   const [viewMode, setViewMode] = useState<ViewMode>('velocity');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Animation States
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentIdx, setCurrentIdx] = useState(0); 
+  const currentIdxRef = useRef(0); // レンダリングをトリガーしないRef管理
+  const [playbackSpeed, setPlaybackSpeed] = useState(0.05);
   
-  // 🚀 初期値を 0.05 (3倍速) に変更。これが「酔わない」黄金比です。
-  const [playbackSpeed, setPlaybackSpeed] = useState(0.05); 
+  // UI更新用（頻度を下げる）
+  const [displayTime, setDisplayTime] = useState<string>("--:--");
+  const [displayProgress, setDisplayProgress] = useState(0);
   
   const animationRef = useRef<number | null>(null);
+  const lastUiUpdateRef = useRef<number>(0); // UI更新の間引き用
 
   // 現在選択されている日のデータ
   const currentDayLog = useMemo(() => {
@@ -40,15 +42,28 @@ export const JournalPage: React.FC = () => {
   useEffect(() => {
     if (currentDayLog && mapRef.current) {
       setIsPlaying(false);
-      setCurrentIdx(0);
+      currentIdxRef.current = 0;
+      setDisplayProgress(0);
+      
       const startPt = currentDayLog.trackPoints[0];
+      
+      // カメラ移動
       mapRef.current.flyTo({
         center: [startPt.lon, startPt.lat],
-        zoom: 14,
+        zoom: 13,
         pitch: 0,
         bearing: 0,
         duration: 2000
       });
+
+      // カーソル位置リセット (GeoJSON Source更新)
+      const source = mapRef.current.getSource('cursor-source') as any;
+      if (source) {
+        source.setData({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [startPt.lon, startPt.lat] }
+        });
+      }
     }
   }, [selectedDayIndex, currentDayLog]);
 
@@ -74,10 +89,8 @@ export const JournalPage: React.FC = () => {
     loadTripData();
   }, []);
 
-  // 線形補間
   const lerp = (start: number, end: number, t: number) => start * (1 - t) + end * t;
 
-  // Bearing計算
   const calculateBearing = (startLat: number, startLng: number, endLat: number, endLng: number) => {
     const y = Math.sin(endLng * (Math.PI/180) - startLng * (Math.PI/180)) * Math.cos(endLat * (Math.PI/180));
     const x = Math.cos(startLat * (Math.PI/180)) * Math.sin(endLat * (Math.PI/180)) -
@@ -85,54 +98,63 @@ export const JournalPage: React.FC = () => {
     return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
   };
 
-  // アニメーションループ
-  const animate = useCallback(() => {
+  // 🚀 Apple流: WebGL最適化アニメーションループ
+  const animate = useCallback((timestamp: number) => {
     if (!currentDayLog || !mapRef.current) return;
 
-    setCurrentIdx(prev => {
-      const nextIdx = prev + playbackSpeed;
-      
-      if (nextIdx >= currentDayLog.trackPoints.length - 1) {
-        setIsPlaying(false);
-        return currentDayLog.trackPoints.length - 1;
-      }
+    let current = currentIdxRef.current;
+    const nextIdx = current + playbackSpeed;
+    
+    if (nextIdx >= currentDayLog.trackPoints.length - 1) {
+      setIsPlaying(false);
+      return;
+    }
 
-      const idxFloor = Math.floor(nextIdx);
-      const idxCeil = Math.min(idxFloor + 1, currentDayLog.trackPoints.length - 1);
-      const t = nextIdx - idxFloor;
+    currentIdxRef.current = nextIdx;
 
-      const p1 = currentDayLog.trackPoints[idxFloor];
-      const p2 = currentDayLog.trackPoints[idxCeil];
-      
-      const currentLat = lerp(p1.lat, p2.lat, t);
-      const currentLon = lerp(p1.lon, p2.lon, t);
+    const idxFloor = Math.floor(nextIdx);
+    const idxCeil = Math.min(idxFloor + 1, currentDayLog.trackPoints.length - 1);
+    const t = nextIdx - idxFloor;
 
-      // 🎥 カメラスタビライザー
-      // 速度に応じて「視線の先」を調整（速いときは遠くを見る＝ブレない）
-      const lookAheadDistance = Math.max(20, playbackSpeed * 200); 
-      const lookAheadIdx = Math.min(idxFloor + Math.floor(lookAheadDistance), currentDayLog.trackPoints.length - 1);
-      const pLook = currentDayLog.trackPoints[lookAheadIdx];
+    const p1 = currentDayLog.trackPoints[idxFloor];
+    const p2 = currentDayLog.trackPoints[idxCeil];
+    
+    const currentLat = lerp(p1.lat, p2.lat, t);
+    const currentLon = lerp(p1.lon, p2.lon, t);
 
-      // 🎥 ダイナミックズーム
-      // スピードが出ている時は少し引く（Zoom Out）
-      const targetZoom = Math.max(11, 14.5 - (playbackSpeed * 2)); 
+    // 1. WebGLレイヤーのソースを直接更新 (DOM操作より圧倒的に軽い)
+    const source = mapRef.current.getSource('cursor-source') as any;
+    if (source) {
+      source.setData({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [currentLon, currentLat] }
+      });
+    }
 
-      if (pLook) {
-        const bearing = calculateBearing(currentLat, currentLon, pLook.lat, pLook.lon);
-        
-        mapRef.current?.easeTo({
-          center: [currentLon, currentLat],
-          bearing: bearing,
-          pitch: 60, // 常に斜め視点
-          zoom: targetZoom, 
-          duration: 0,
-          padding: { top: 0, bottom: 0, left: 0, right: 0 }
-        });
-      }
+    // 2. カメラ制御 (jumpToで瞬時に追従)
+    const lookAheadDistance = Math.max(20, playbackSpeed * 200); 
+    const lookAheadIdx = Math.min(idxFloor + Math.floor(lookAheadDistance), currentDayLog.trackPoints.length - 1);
+    const pLook = currentDayLog.trackPoints[lookAheadIdx];
+    const targetZoom = Math.max(10, 14.5 - (playbackSpeed * 3)); // 速度が出たらもっと引く
 
-      animationRef.current = requestAnimationFrame(animate);
-      return nextIdx;
-    });
+    if (pLook) {
+      const bearing = calculateBearing(currentLat, currentLon, pLook.lat, pLook.lon);
+      mapRef.current.getMap().jumpTo({
+        center: [currentLon, currentLat],
+        bearing: bearing,
+        pitch: 60,
+        zoom: targetZoom
+      });
+    }
+
+    // 3. UI更新の間引き (300msに1回だけReactを動かす)
+    if (timestamp - lastUiUpdateRef.current > 300) {
+      setDisplayTime(p1.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      setDisplayProgress(nextIdx);
+      lastUiUpdateRef.current = timestamp;
+    }
+
+    animationRef.current = requestAnimationFrame(animate);
   }, [currentDayLog, playbackSpeed]);
 
   useEffect(() => {
@@ -141,8 +163,8 @@ export const JournalPage: React.FC = () => {
     return () => { if (animationRef.current !== null) cancelAnimationFrame(animationRef.current); };
   }, [isPlaying, animate]);
 
-  // GeoJSON
-  const geoJsonData = useMemo(() => {
+  // GeoJSON (ルートライン)
+  const routeGeoJson = useMemo(() => {
     if (!currentDayLog) return null;
     return {
       type: 'Feature',
@@ -154,31 +176,20 @@ export const JournalPage: React.FC = () => {
     };
   }, [currentDayLog]);
 
-  const currentPositionGeoJson = useMemo(() => {
-    if (!currentDayLog) return null;
-    const idxFloor = Math.floor(currentIdx);
-    const idxCeil = Math.min(idxFloor + 1, currentDayLog.trackPoints.length - 1);
-    const t = currentIdx - idxFloor;
-    const p1 = currentDayLog.trackPoints[idxFloor];
-    const p2 = currentDayLog.trackPoints[idxCeil];
-    
-    if (!p1 || !p2) return null;
+  // 初期カーソル位置 (レンダリング用)
+  const initialCursorGeoJson = useMemo(() => {
     return {
       type: 'Feature',
-      geometry: {
-        type: 'Point',
-        coordinates: [lerp(p1.lon, p2.lon, t), lerp(p1.lat, p2.lat, t)]
-      }
+      geometry: { type: 'Point', coordinates: [0, 0] } // 最初は適当、ロード後に更新
     };
-  }, [currentDayLog, currentIdx]);
+  }, []);
 
-  // 速度変更ロジック (もっと細かく設定)
   const cycleSpeed = () => {
     setPlaybackSpeed(prev => {
-      if (prev === 0.05) return 0.2;  // 快走
-      if (prev === 0.2) return 1.0;   // 早送り
-      if (prev === 1.0) return 0.01;  // 超スロー
-      return 0.05;                    // デフォルトに戻る
+      if (prev === 0.05) return 0.2;
+      if (prev === 0.2) return 1.0;
+      if (prev === 1.0) return 0.01;
+      return 0.05;
     });
   };
 
@@ -199,19 +210,39 @@ export const JournalPage: React.FC = () => {
       >
         {viewMode === 'altitude' && <Source id="mapbox-dem" type="raster-dem" url="mapbox://mapbox.mapbox-terrain-dem-v1" tileSize={512} maxzoom={14} />}
         
-        {geoJsonData && (
-          <Source id="route-source" type="geojson" data={geoJsonData as any}>
+        {/* ルートライン */}
+        {routeGeoJson && (
+          <Source id="route-source" type="geojson" data={routeGeoJson as any}>
             <Layer id="route-layer" type="line" layout={{'line-join':'round', 'line-cap':'round'}} paint={{'line-color': viewMode === 'velocity' ? '#007AFF' : '#FF9500', 'line-width': 4, 'line-opacity': 0.8}} />
             {viewMode === 'velocity' && <Layer id="route-glow" type="line" paint={{'line-color': '#007AFF', 'line-width': 12, 'line-opacity': 0.3, 'line-blur': 10}} />}
           </Source>
         )}
 
-        {currentPositionGeoJson && (
-          <Source id="current-pos" type="geojson" data={currentPositionGeoJson as any}>
-             <Layer id="point-glow" type="circle" paint={{'circle-radius': 15, 'circle-color': '#FFFFFF', 'circle-opacity': 0.3, 'circle-blur': 1}} />
-             <Layer id="point-center" type="circle" paint={{'circle-radius': 6, 'circle-color': '#FFFFFF', 'circle-stroke-width': 2, 'circle-stroke-color': '#007AFF'}} />
-          </Source>
-        )}
+        {/* 🚗 カーソル (WebGLレイヤーとして描画) */}
+        <Source id="cursor-source" type="geojson" data={initialCursorGeoJson as any}>
+           {/* 外側の光 */}
+           <Layer 
+             id="cursor-glow" 
+             type="circle" 
+             paint={{
+               'circle-radius': 15,
+               'circle-color': '#007AFF',
+               'circle-opacity': 0.4,
+               'circle-blur': 0.5
+             }} 
+           />
+           {/* 中心のドット */}
+           <Layer 
+             id="cursor-dot" 
+             type="circle" 
+             paint={{
+               'circle-radius': 6,
+               'circle-color': '#FFFFFF',
+               'circle-stroke-width': 2,
+               'circle-stroke-color': '#007AFF'
+             }} 
+           />
+        </Source>
       </Map>
 
       {/* 🎮 UI: Top Bar */}
@@ -256,7 +287,7 @@ export const JournalPage: React.FC = () => {
       <div className="absolute bottom-10 left-6 right-6 flex flex-col items-center gap-4 pointer-events-none z-10">
         
         <div className="pointer-events-auto bg-black/60 backdrop-blur-xl border border-white/10 rounded-full px-6 py-4 flex items-center gap-6 shadow-2xl">
-          <button onClick={() => { setIsPlaying(false); setCurrentIdx(0); }} className="text-zinc-400 hover:text-white"><RotateCcw size={20} /></button>
+          <button onClick={() => { setIsPlaying(false); currentIdxRef.current = 0; setDisplayProgress(0); }} className="text-zinc-400 hover:text-white"><RotateCcw size={20} /></button>
           <button onClick={() => setIsPlaying(!isPlaying)} className="w-14 h-14 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 transition-transform active:scale-95">
             {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" className="ml-1" />}
           </button>
@@ -267,10 +298,14 @@ export const JournalPage: React.FC = () => {
 
         <div className="w-full max-w-2xl bg-black/40 backdrop-blur-md rounded-2xl p-4 border border-white/5 flex items-center gap-4">
            <div className="text-xs font-mono text-zinc-400 w-12">
-             {currentDayLog?.trackPoints[Math.floor(currentIdx)]?.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+             {displayTime}
            </div>
            <div className="flex-1 h-1 bg-zinc-800 rounded-full overflow-hidden relative">
-             <motion.div className="absolute top-0 bottom-0 left-0 bg-blue-500" style={{ width: `${(currentIdx / (currentDayLog?.trackPoints.length || 1)) * 100}%` }} />
+             <motion.div 
+                className="absolute top-0 bottom-0 left-0 bg-blue-500" 
+                // プログレスバーもReactの更新を待たずに動かすのは難しいので、ここだけはカクついても良いとする
+                style={{ width: `${(displayProgress / (currentDayLog?.trackPoints.length || 1)) * 100}%` }} 
+             />
            </div>
            <div className="text-xs font-mono text-zinc-400 w-24 text-right">
              {currentDayLog?.duration}
