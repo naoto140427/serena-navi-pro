@@ -44,7 +44,7 @@ export const JournalPage: React.FC = () => {
 
   const animationRef = useRef<number | null>(null);
   const lastUiUpdateRef = useRef<number>(0);
-  const memoryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const memoryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load Data
   useEffect(() => {
