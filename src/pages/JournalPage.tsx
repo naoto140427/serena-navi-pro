@@ -11,13 +11,13 @@ const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 // 🎭 MEMORY ASSETS (Demo Data)
 const MEMORIES = [
-  { progress: 0.1, type: 'photo', title: 'Start: 宝塚', image: 'https://images.unsplash.com/photo-1565675402246-86d708f50c76?q=80&w=800', msg: '伝説の旅、開始。' },
+  { progress: 0.1, type: 'photo', title: 'Start: 宝塚', image: 'https://images.unsplash.com/photo-1565675402246-86d708f50c76?q=80&w=400', msg: '伝説の旅、開始。' },
   { progress: 0.25, type: 'receipt', title: 'Highway Toll', amount: '¥3,450', item: '明石海峡大橋' },
-  { progress: 0.3, type: 'photo', title: '淡路SA', image: 'https://images.unsplash.com/photo-1596545738622-540c15383501?q=80&w=800', msg: '絶景のスタバ休憩。風強すぎ。' },
+  { progress: 0.3, type: 'photo', title: '淡路SA', image: 'https://images.unsplash.com/photo-1596545738622-540c15383501?q=80&w=400', msg: '絶景のスタバ休憩。風強すぎ。' },
   { progress: 0.45, type: 'weather', condition: 'rain' }, // 雨エリア突入
   { progress: 0.6, type: 'receipt', title: 'Gasoline', amount: '¥6,200', item: 'Regular 168/L' },
   { progress: 0.7, type: 'weather', condition: 'sunset' }, // 夕焼け
-  { progress: 0.75, type: 'photo', title: '伊予灘SA', image: 'https://images.unsplash.com/photo-1622365289947-66914b306155?q=80&w=800', msg: '世界一美しい夕日。' },
+  { progress: 0.75, type: 'photo', title: '伊予灘SA', image: 'https://images.unsplash.com/photo-1622365289947-66914b306155?q=80&w=400', msg: '世界一美しい夕日。' },
   { progress: 0.9, type: 'receipt', title: 'Ferry Ticket', amount: '¥12,800', item: '国道九四フェリー' },
   { progress: 0.95, type: 'weather', condition: 'night' }, // 夜
 ];
@@ -150,7 +150,7 @@ export const JournalPage: React.FC = () => {
     }
 
     // UI Throttling
-    if (timestamp - lastUiUpdateRef.current > 100) {
+    if (timestamp - lastUiUpdateRef.current > 250) {
       if (p1.time && !isNaN(p1.time.getTime())) {
         setDisplayTime(p1.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       }
@@ -200,6 +200,9 @@ export const JournalPage: React.FC = () => {
         mapStyle="mapbox://styles/mapbox/dark-v11"
         mapboxAccessToken={MAPBOX_TOKEN}
         terrain={{ source: 'mapbox-dem', exaggeration: 1.5 }}
+        reuseMaps={true}
+        antialias={false}
+        preserveDrawingBuffer={false}
         fog={{
           "range": [1, 10],
           "color": weather === 'sunset' ? "#4a2c2a" : (weather === 'night' ? "#000000" : "#0a0a0a"),
