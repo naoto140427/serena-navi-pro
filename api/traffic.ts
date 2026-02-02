@@ -13,9 +13,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const alerts: string[] = [];
 
-    // 複数のエリアを順番に見に行く
-    for (const url of TARGET_URLS) {
-      const { data } = await axios.get(url);
+    // 複数のエリアを並列に見に行く
+    const responses = await Promise.all(TARGET_URLS.map(url => axios.get(url)));
+
+    for (const { data } of responses) {
       const $ = cheerio.load(data);
 
       // Yahooのページ構造から「通行止」「渋滞」「事故」の文字を探す
