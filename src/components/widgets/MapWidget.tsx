@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Map, { Marker, NavigationControl, Source, Layer } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useNavStore } from '../../store/useNavStore';
+import { calculateDistance } from '../../utils/geo';
 import { MapPin } from 'lucide-react';
 import type { LineLayer } from 'react-map-gl';
 
@@ -25,6 +26,8 @@ const routeLayer: LineLayer = {
 export const MapWidget: React.FC = () => {
   const { currentLocation, nextWaypoint } = useNavStore();
   const [routeGeoJSON, setRouteGeoJSON] = useState<any>(null);
+  const lastFetchLocation = useRef<{ lat: number; lng: number } | null>(null);
+  const lastWaypointId = useRef<string | null>(null);
 
   // デフォルト位置
   const defaultView = {
@@ -39,6 +42,22 @@ export const MapWidget: React.FC = () => {
   useEffect(() => {
     const fetchRoute = async () => {
       if (!currentLocation || !nextWaypoint) return;
+
+      const shouldFetch = (() => {
+        if (!lastFetchLocation.current || !lastWaypointId.current) return true;
+        if (nextWaypoint.id !== lastWaypointId.current) return true;
+
+        const dist = calculateDistance(
+          currentLocation.lat,
+          currentLocation.lng,
+          lastFetchLocation.current.lat,
+          lastFetchLocation.current.lng
+        );
+        // 50m以上移動したら再取得
+        return dist > 0.05;
+      })();
+
+      if (!shouldFetch) return;
 
       const start = [currentLocation.lng, currentLocation.lat];
       const end = [nextWaypoint.coords.lng, nextWaypoint.coords.lat];
@@ -59,6 +78,10 @@ export const MapWidget: React.FC = () => {
             geometry: route
           };
           setRouteGeoJSON(geojson);
+
+          // 成功時にキャッシュ更新
+          lastFetchLocation.current = { lat: currentLocation.lat, lng: currentLocation.lng };
+          lastWaypointId.current = nextWaypoint.id;
         }
       } catch (error) {
         console.error("Route fetch error:", error);
