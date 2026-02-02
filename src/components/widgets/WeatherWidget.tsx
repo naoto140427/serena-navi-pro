@@ -14,7 +14,7 @@ interface WeatherData {
 }
 
 export const WeatherWidget: React.FC = () => {
-  const { currentLocation, currentAreaText } = useNavStore();
+  const { currentAreaText } = useNavStore();
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -74,11 +74,13 @@ export const WeatherWidget: React.FC = () => {
   // Open-Meteo APIからデータ取得
   useEffect(() => {
     const fetchWeather = async () => {
-      if (!currentLocation) return;
+      // Get latest location directly from store to avoid dependency loop
+      const loc = useNavStore.getState().currentLocation;
+      if (!loc) return;
       
       setLoading(true);
       try {
-        const { lat, lng } = currentLocation;
+        const { lat, lng } = loc;
         const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true`;
         
         const res = await fetch(url);
@@ -104,7 +106,7 @@ export const WeatherWidget: React.FC = () => {
     // 10分ごとに更新
     const interval = setInterval(fetchWeather, 600000);
     return () => clearInterval(interval);
-  }, [currentLocation]); 
+  }, []);
 
   // デフォルト設定
   const config = weather 
