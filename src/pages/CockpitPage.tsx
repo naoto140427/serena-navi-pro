@@ -214,6 +214,22 @@ export const CockpitPage: React.FC = () => {
   const navLineGeoJson = useMemo(() => {
     if (!nextWaypoint) return null;
     return { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [[currentLocation.lng, currentLocation.lat], [nextWaypoint.coords.lng, nextWaypoint.coords.lat]] } };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nextWaypoint]);
+
+  useEffect(() => {
+    if (!mapRef.current || !nextWaypoint) return;
+    const source = mapRef.current.getSource('nav-line-source') as any;
+    if (source) {
+      source.setData({
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: [[currentLocation.lng, currentLocation.lat], [nextWaypoint.coords.lng, nextWaypoint.coords.lat]]
+        }
+      });
+    }
   }, [currentLocation, nextWaypoint]);
 
   const speak = (text: string) => {
