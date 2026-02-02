@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const API_KEY = process.env.GEMINI_API_KEY || "YOUR_GEMINI_API_KEY_HERE";
+const API_KEY = process.env.GEMINI_API_KEY;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Credentials', "true");
@@ -13,6 +13,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  if (!API_KEY) {
+    console.error('Gemini API Key is missing');
+    return res.status(500).json({ error: 'Server configuration error' });
+  }
+
   const { image } = req.body; // Base64 image string
 
   if (!image) {
@@ -21,10 +26,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const genAI = new GoogleGenerativeAI(API_KEY);
-    // 画像認識に特化した高速モデル
+    // High-speed model specialized for image recognition
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    // 画像データの準備 (Base64ヘッダー除去)
+    // Prepare image data (remove Base64 header)
     const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
     
     const prompt = `
@@ -49,8 +54,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const response = await result.response;
     const text = response.text();
     
-    // JSON文字列をパースして返す
-    // AIがたまに ```json ... ``` で囲むので除去処理
+    // Parse and return JSON string
+    // Remove markdown code blocks if the AI wraps the JSON in them
     const jsonString = text.replace(/```json/g, '').replace(/```/g, '').trim();
     const data = JSON.parse(jsonString);
 
