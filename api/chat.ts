@@ -1,8 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// ★NaotoさんのAPIキーをセットしました
-const API_KEY = process.env.GEMINI_API_KEY || "AIzaSyCk-_Ln_0V2GesYL7MCzwiwPR7FqO8VFuo";
+const API_KEY = process.env.GEMINI_API_KEY;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS許可
@@ -16,6 +15,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const { message, context } = req.body;
+
+  if (!API_KEY) {
+    console.error("GEMINI_API_KEY is not set");
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
 
   try {
     const genAI = new GoogleGenerativeAI(API_KEY);
