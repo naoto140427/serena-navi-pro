@@ -7,7 +7,7 @@ export interface Waypoint {
   id: string;
   name: string;
   coords: Coordinates;
-  // hotel, pickup を追加
+  // Added: hotel, pickup
   type: 'start' | 'goal' | 'parking' | 'sightseeing' | 'food' | 'gas' | 'hotel' | 'pickup';
   description?: string;
   image?: string;
@@ -29,12 +29,12 @@ export interface Waypoint {
     vending: boolean;
   };
   weather?: {
-    // rain を追加
+    // Added: rain
     type: 'sunny' | 'cloudy' | 'rainy' | 'rain' | 'snow' | 'night';
     temp: string;
   };
   scheduledTime?: string;
-  // address, eta, time を追加 (TimelineItemなどで使用)
+  // Added: address, eta, time (Used in TimelineItem, etc.)
   address?: string;
   eta?: string;
   time?: string;
@@ -71,17 +71,22 @@ export interface NavState {
   appMode: AppMode;
 }
 
+export interface NotificationPayload {
+  tts?: string;
+  [key: string]: unknown;
+}
+
 export interface AppNotification {
   id: string;
-  // rest, music を追加
+  // Added: rest, music
   type: 'info' | 'warning' | 'arrival' | 'chat' | 'rest' | 'music';
   message: string;
   sender: string;
   timestamp: number;
-  payload?: any;
+  payload?: NotificationPayload;
 }
 
-// TripDataの追加 (tripData.tsで使用)
+// Added: TripData (Used in tripData.ts)
 export interface TripData {
   waypoints: Waypoint[];
 }
