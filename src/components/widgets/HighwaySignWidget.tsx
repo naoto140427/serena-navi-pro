@@ -1,17 +1,35 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useNavStore } from '../../store/useNavStore';
+import { useShallow } from 'zustand/react/shallow';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Navigation, Coffee, ArrowUp } from 'lucide-react';
 
 export const HighwaySignWidget: React.FC = () => {
-  const { nextWaypoint, waypoints } = useNavStore();
+  const { nextWaypoint, waypoints } = useNavStore(
+    useShallow((state) => ({
+      nextWaypoint: state.nextWaypoint,
+      waypoints: state.waypoints,
+    }))
+  );
 
   // 次の目的地がない場合は表示しない
   if (!nextWaypoint) return null;
 
   // デモ用に、次のさらに次の目的地も取得してみる（疑似的な3段表示のため）
   const currentIndex = waypoints.findIndex(w => w.id === nextWaypoint.id);
-  const upcomingWaypoints = waypoints.slice(currentIndex, currentIndex + 3);
+
+  const upcomingWaypoints = useMemo(() =>
+    waypoints.slice(currentIndex, currentIndex + 3),
+    [waypoints, currentIndex]
+  );
+
+  const distances = useMemo(() =>
+    upcomingWaypoints.map((_, index) => {
+      const isNext = index === 0;
+      return isNext ? (Math.random() * 10 + 2).toFixed(1) : (Math.random() * 30 + 15).toFixed(0);
+    }),
+    [upcomingWaypoints]
+  );
 
   return (
     <div className="flex flex-col gap-1 font-sans select-none">
@@ -74,7 +92,7 @@ export const HighwaySignWidget: React.FC = () => {
                     {/* 右側: 距離 */}
                     <div className="flex items-baseline gap-1">
                       <span className={`font-bold font-display ${isNext ? 'text-2xl text-yellow-300' : 'text-lg'}`}>
-                        {isNext ? (Math.random() * 10 + 2).toFixed(1) : (Math.random() * 30 + 15).toFixed(0)}
+                        {distances[index]}
                       </span>
                       <span className="text-xs">km</span>
                     </div>
