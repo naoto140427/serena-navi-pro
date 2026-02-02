@@ -8,9 +8,19 @@ interface TwitterFeedProps {
 }
 
 // Twitterの型定義
+interface TwitterWidget {
+  widgets: {
+    createTimeline: (
+      source: { sourceType: string; screenName: string },
+      target: HTMLElement,
+      options: Record<string, unknown>
+    ) => Promise<void>;
+  };
+}
+
 declare global {
   interface Window {
-    twttr: any;
+    twttr: TwitterWidget;
   }
 }
 
@@ -19,8 +29,6 @@ export const TwitterFeed: React.FC<TwitterFeedProps> = ({ id, height = 600 }) =>
   const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
 
   useEffect(() => {
-    setStatus('loading');
-
     // 1. コンテナをクリア
     if (containerRef.current) {
       containerRef.current.innerHTML = '';

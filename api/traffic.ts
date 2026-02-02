@@ -10,26 +10,39 @@ const TARGET_URLS = [
 ];
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate');
+
   try {
     const alerts: string[] = [];
 
-    // 複数のエリアを順番に見に行く
-    for (const url of TARGET_URLS) {
-      const { data } = await axios.get(url);
-      const $ = cheerio.load(data);
+    // 複数のエリアを並列に見に行く
+    const results = await Promise.all(
+      TARGET_URLS.map(async (url) => {
+        const { data } = await axios.get(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; SerenaNaviBot/1.0; +https://serena-navi.vercel.app)'
+          },
+          timeout: 5000
+        });
+        const $ = cheerio.load(data);
+        const urlAlerts: string[] = [];
 
-      // Yahooのページ構造から「通行止」「渋滞」「事故」の文字を探す
-      // ※ページ構造が変わると動かなくなる可能性があります（スクレイピングの宿命）
-      
-      // '.section' クラスの中にある事故リストを探す
-      $('.trouble_list li').each((_, element) => {
-        const text = $(element).text().trim().replace(/\s+/g, ' ');
-        // 「山陽道」「中国道」「新名神」「伊勢道」などの関連ルートだけ抜粋
-        if (text.match(/(山陽道|中国道|新名神|伊勢道|東九州道|大分道)/)) {
-           alerts.push(text);
-        }
-      });
-    }
+        // Yahooのページ構造から「通行止」「渋滞」「事故」の文字を探す
+        // ※ページ構造が変わると動かなくなる可能性があります（スクレイピングの宿命）
+
+        // '.section' クラスの中にある事故リストを探す
+        $('.trouble_list li').each((_, element) => {
+          const text = $(element).text().trim().replace(/\s+/g, ' ');
+          // 「山陽道」「中国道」「新名神」「伊勢道」などの関連ルートだけ抜粋
+          if (text.match(/(山陽道|中国道|新名神|伊勢道|東九州道|大分道)/)) {
+            urlAlerts.push(text);
+          }
+        });
+        return urlAlerts;
+      })
+    );
+
+    alerts.push(...results.flat());
 
     // 重複を削除
     const uniqueAlerts = [...new Set(alerts)];

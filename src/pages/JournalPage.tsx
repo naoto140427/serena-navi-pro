@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import Map, { Source, Layer, type MapRef } from 'react-map-gl';
+import type { GeoJSONSource } from 'mapbox-gl';
+import type { Feature, LineString } from 'geojson';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Loader2, Play, Pause, FastForward, RotateCcw, CloudRain, Sun, Moon, MapPin, Wallet } from 'lucide-react';
 import { parseGPX, type MultiDayTripLog } from '../utils/gpxParser';
@@ -9,8 +11,19 @@ import { WalletWidget } from '../components/widgets/WalletWidget';
 // Mapbox Token
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
+interface Memory {
+  progress: number;
+  type: 'photo' | 'receipt' | 'weather';
+  title?: string;
+  image?: string;
+  msg?: string;
+  amount?: string;
+  item?: string;
+  condition?: 'sunny' | 'rain' | 'sunset' | 'night';
+}
+
 // 🎭 MEMORY ASSETS (Demo Data)
-const MEMORIES = [
+const MEMORIES: Memory[] = [
   { progress: 0.1, type: 'photo', title: 'Start: 宝塚', image: 'https://images.unsplash.com/photo-1565675402246-86d708f50c76?q=80&w=400', msg: '伝説の旅、開始。' },
   { progress: 0.25, type: 'receipt', title: 'Highway Toll', amount: '¥3,450', item: '明石海峡大橋' },
   { progress: 0.3, type: 'photo', title: '淡路SA', image: 'https://images.unsplash.com/photo-1596545738622-540c15383501?q=80&w=400', msg: '絶景のスタバ休憩。風強すぎ。' },
@@ -38,7 +51,7 @@ export const JournalPage: React.FC = () => {
   // UI State
   const [displayTime, setDisplayTime] = useState<string>("--:--");
   const [progress, setProgress] = useState(0); // 0.0 ~ 1.0
-  const [activeMemory, setActiveMemory] = useState<any>(null); // 現在表示中の思い出
+  const [activeMemory, setActiveMemory] = useState<Memory | null>(null); // 現在表示中の思い出
   const [weather, setWeather] = useState<'sunny' | 'rain' | 'sunset' | 'night'>('sunny');
   const [showWallet, setShowWallet] = useState(false);
 
@@ -76,8 +89,8 @@ export const JournalPage: React.FC = () => {
       const startPt = currentDayLog.trackPoints[0];
       mapRef.current.flyTo({ center: [startPt.lon, startPt.lat], zoom: 13, pitch: 60, duration: 2000 });
       
-      const source = mapRef.current.getSource('cursor-source') as any;
-      if (source) source.setData({ type: 'Feature', geometry: { type: 'Point', coordinates: [startPt.lon, startPt.lat] } });
+      const source = mapRef.current.getSource('cursor-source') as GeoJSONSource;
+      if (source) source.setData({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [startPt.lon, startPt.lat] } });
     }
   }, [selectedDayIndex, currentDayLog]);
 
@@ -104,7 +117,7 @@ export const JournalPage: React.FC = () => {
     const hitMemory = MEMORIES.find(m => Math.abs(m.progress - currentProgress) < 0.005);
     if (hitMemory) {
       if (hitMemory.type === 'weather') {
-        setWeather(hitMemory.condition as any);
+        setWeather(hitMemory.condition || 'sunny');
       } else if (activeMemory !== hitMemory) {
         setActiveMemory(hitMemory);
         if (memoryTimeoutRef.current) clearTimeout(memoryTimeoutRef.current);
@@ -123,10 +136,8 @@ export const JournalPage: React.FC = () => {
     const currentLon = p1.lon * (1 - t) + p2.lon * t;
 
     // WebGL Marker
-    const source = mapRef.current.getSource('cursor-source') as any;
-    if (source && source.setData) {
-      source.setData({ type: 'Feature', geometry: { type: 'Point', coordinates: [currentLon, currentLat] } });
-    }
+    const source = mapRef.current.getSource('cursor-source') as GeoJSONSource;
+    if (source) source.setData({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [currentLon, currentLat] } });
 
     // Adaptive Camera
     const lookAheadIdx = Math.min(idxFloor + Math.floor(Math.max(20, playbackSpeed * 200)), totalPoints - 1);
@@ -171,7 +182,7 @@ export const JournalPage: React.FC = () => {
   }, [isPlaying, animate]);
 
   // Assets
-  const routeGeoJson = useMemo(() => currentDayLog ? {
+  const routeGeoJson = useMemo<Feature<LineString> | null>(() => currentDayLog ? {
     type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: currentDayLog.trackPoints.map(pt => [pt.lon, pt.lat, pt.ele]) }
   } : null, [currentDayLog]);
 
@@ -212,12 +223,12 @@ export const JournalPage: React.FC = () => {
       >
         <Source id="mapbox-dem" type="raster-dem" url="mapbox://mapbox.mapbox-terrain-dem-v1" tileSize={512} maxzoom={14} />
         {routeGeoJson && (
-          <Source id="route-source" type="geojson" data={routeGeoJson as any}>
+          <Source id="route-source" type="geojson" data={routeGeoJson}>
             <Layer id="route-layer" type="line" layout={{'line-join':'round', 'line-cap':'round'}} paint={{'line-color': '#007AFF', 'line-width': 4, 'line-opacity': 0.8}} />
             <Layer id="route-glow" type="line" paint={{'line-color': '#007AFF', 'line-width': 12, 'line-opacity': 0.3, 'line-blur': 10}} />
           </Source>
         )}
-        <Source id="cursor-source" type="geojson" data={{ type: 'Feature', geometry: { type: 'Point', coordinates: [0, 0] } } as any}>
+        <Source id="cursor-source" type="geojson" data={{ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [0, 0] } }}>
            <Layer id="cursor-glow" type="circle" paint={{'circle-radius': 20, 'circle-color': '#FFFFFF', 'circle-opacity': 0.3, 'circle-blur': 1}} />
            <Layer id="cursor-dot" type="circle" paint={{'circle-radius': 6, 'circle-color': '#FFFFFF', 'circle-stroke-width': 2, 'circle-stroke-color': '#007AFF'}} />
         </Source>

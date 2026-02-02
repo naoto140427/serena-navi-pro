@@ -19,7 +19,7 @@ export const TrafficTicker: React.FC = () => {
         const json = await res.json();
         setData(json);
       } catch (e) {
-        console.error("Traffic API Error");
+        console.error("Traffic API Error", e);
       }
     };
 

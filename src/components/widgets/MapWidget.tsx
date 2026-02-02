@@ -1,11 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Map, { Marker, NavigationControl, Source, Layer } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useNavStore } from '../../store/useNavStore';
+import { calculateDistance } from '../../utils/geo';
 import { MapPin } from 'lucide-react';
 import type { LineLayer } from 'react-map-gl';
+import type { Feature, LineString } from 'geojson';
 
-const MAPBOX_TOKEN = "pk.eyJ1IjoibmFvdG8xNTAzMDQiLCJhIjoiY21qenAzMDQzMm1hOTNkb2pleG9sc21vNCJ9.xxpgNjx3zzr-tubIbpw2-Q"; 
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 // ルート線のスタイル定義 (Navi Blue)
 const routeLayer: LineLayer = {
@@ -24,7 +26,9 @@ const routeLayer: LineLayer = {
 
 export const MapWidget: React.FC = () => {
   const { currentLocation, nextWaypoint } = useNavStore();
-  const [routeGeoJSON, setRouteGeoJSON] = useState<any>(null);
+  const [routeGeoJSON, setRouteGeoJSON] = useState<Feature<LineString> | null>(null);
+  const lastFetchLocation = useRef<{ lat: number; lng: number } | null>(null);
+  const lastWaypointId = useRef<string | null>(null);
 
   // デフォルト位置
   const defaultView = {
@@ -40,6 +44,22 @@ export const MapWidget: React.FC = () => {
     const fetchRoute = async () => {
       if (!currentLocation || !nextWaypoint) return;
 
+      const shouldFetch = (() => {
+        if (!lastFetchLocation.current || !lastWaypointId.current) return true;
+        if (nextWaypoint.id !== lastWaypointId.current) return true;
+
+        const dist = calculateDistance(
+          currentLocation.lat,
+          currentLocation.lng,
+          lastFetchLocation.current.lat,
+          lastFetchLocation.current.lng
+        );
+        // 50m以上移動したら再取得
+        return dist > 0.05;
+      })();
+
+      if (!shouldFetch) return;
+
       const start = [currentLocation.lng, currentLocation.lat];
       const end = [nextWaypoint.coords.lng, nextWaypoint.coords.lat];
 
@@ -53,12 +73,16 @@ export const MapWidget: React.FC = () => {
           const data = json.routes[0];
           const route = data.geometry;
           
-          const geojson = {
+          const geojson: Feature<LineString> = {
             type: 'Feature',
             properties: {},
             geometry: route
           };
           setRouteGeoJSON(geojson);
+
+          // 成功時にキャッシュ更新
+          lastFetchLocation.current = { lat: currentLocation.lat, lng: currentLocation.lng };
+          lastWaypointId.current = nextWaypoint.id;
         }
       } catch (error) {
         console.error("Route fetch error:", error);
