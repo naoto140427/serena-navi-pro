@@ -10,6 +10,8 @@ const TARGET_URLS = [
 ];
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate');
+
   try {
     const alerts: string[] = [];
 
