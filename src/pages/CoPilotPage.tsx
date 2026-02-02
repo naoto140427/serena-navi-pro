@@ -146,7 +146,7 @@ const NowPlayingWidget = () => {
         <div className="flex-1 min-w-0 flex flex-col justify-center h-full py-2">
           <div>
             <h3 className="text-xl font-bold text-white leading-tight truncate">{track?.name || "Not Playing"}</h3>
-            <p className="text-base text-white/60 truncate mt-1">{track?.artists.map((a:any) => a.name).join(', ')}</p>
+            <p className="text-base text-white/60 truncate mt-1">{track?.artists.map((a: { name: string }) => a.name).join(', ')}</p>
           </div>
           <div className="flex items-center gap-6 mt-5">
             <button onClick={handlePlayPause} className="w-12 h-12 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-lg">
@@ -163,7 +163,14 @@ const NowPlayingWidget = () => {
 };
 
 // --- Widget: Quick Actions ---
-const QuickActionWidget = ({ icon: Icon, label, color, onClick }: any) => (
+interface QuickActionWidgetProps {
+  icon: React.ElementType;
+  label: string;
+  color: string;
+  onClick: () => void;
+}
+
+const QuickActionWidget = ({ icon: Icon, label, color, onClick }: QuickActionWidgetProps) => (
   <IOSCard onClick={onClick} className="aspect-square flex flex-col justify-between p-4 bg-[#2c2c2e]/50 hover:bg-[#3a3a3c] transition-colors border-none">
     <div className={`w-10 h-10 rounded-full ${color} flex items-center justify-center text-white`}>
       <Icon size={20} />
@@ -217,8 +224,8 @@ const JudgeWidget = () => {
 // --- Screen: Dashboard ---
 const DashboardScreen = () => {
   const { sendNotification, currentUser } = useNavStore();
-  const handleSend = (type: string, msg: string) => {
-    sendNotification({ id: crypto.randomUUID(), type: type as any, message: msg, sender: currentUser || "Co-Pilot" });
+  const handleSend = (type: 'info' | 'warning' | 'alert' | 'rest', msg: string) => {
+    sendNotification({ id: crypto.randomUUID(), type, message: msg, sender: currentUser || "Co-Pilot" });
   };
 
   return (
@@ -556,18 +563,29 @@ const WalletScreen = () => {
   );
 };
 
+// --- Component: Settings Cell ---
+interface SettingsCellProps {
+  label: string;
+  value?: string | null;
+  icon: React.ElementType;
+  color: string;
+  isDestructive?: boolean;
+  onClick?: () => void;
+}
+
+const Cell = ({ label, value, icon: Icon, color, isDestructive, onClick }: SettingsCellProps) => (
+  <div onClick={onClick} className="flex items-center justify-between p-4 bg-[#1c1c1e] active:bg-[#2c2c2e] transition-colors border-b border-white/5 last:border-0 cursor-pointer">
+    <div className="flex items-center gap-3">
+      <div className={`w-7 h-7 rounded-[6px] ${color} flex items-center justify-center text-white`}><Icon size={16} /></div>
+      <span className={`text-[17px] ${isDestructive ? 'text-red-500' : 'text-white'}`}>{label}</span>
+    </div>
+    <div className="flex items-center gap-2">{value && <span className="text-[17px] text-zinc-500">{value}</span>}<ChevronRight size={16} className="text-zinc-600" /></div>
+  </div>
+);
+
 // --- Screen: Settings ---
 const SettingsScreen = () => {
   const { currentUser, resetAllData } = useNavStore();
-  const Cell = ({ label, value, icon: Icon, color, isDestructive, onClick }: any) => (
-    <div onClick={onClick} className="flex items-center justify-between p-4 bg-[#1c1c1e] active:bg-[#2c2c2e] transition-colors border-b border-white/5 last:border-0 cursor-pointer">
-      <div className="flex items-center gap-3">
-        <div className={`w-7 h-7 rounded-[6px] ${color} flex items-center justify-center text-white`}><Icon size={16} /></div>
-        <span className={`text-[17px] ${isDestructive ? 'text-red-500' : 'text-white'}`}>{label}</span>
-      </div>
-      <div className="flex items-center gap-2">{value && <span className="text-[17px] text-zinc-500">{value}</span>}<ChevronRight size={16} className="text-zinc-600" /></div>
-    </div>
-  );
 
   return (
     <div className="pt-28 pb-32 px-4 bg-black min-h-screen">
@@ -581,7 +599,7 @@ const SettingsScreen = () => {
 };
 
 // --- Bottom Dock ---
-const Dock = ({ active, onChange }: { active: string, onChange: (v: any) => void }) => {
+const Dock = ({ active, onChange }: { active: string, onChange: (v: string) => void }) => {
   const items = [
     { id: 'dashboard', icon: Activity },
     { id: 'guide', icon: MapPin },
@@ -613,15 +631,17 @@ const Dock = ({ active, onChange }: { active: string, onChange: (v: any) => void
   );
 };
 
+// --- Screen: Traffic ---
+const TrafficScreen = () => (
+  <div className="pt-28 pb-32 px-4 bg-black min-h-screen">
+    <IOSTitle>Traffic Intel</IOSTitle>
+    <div className="h-[60vh] bg-[#1c1c1e] rounded-[24px] overflow-hidden border border-white/5"><TwitterFeed id="iHighwayKyushu" /></div>
+  </div>
+);
+
 // --- Main Page Component ---
 export const CoPilotPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const TrafficScreen = () => (
-    <div className="pt-28 pb-32 px-4 bg-black min-h-screen">
-      <IOSTitle>Traffic Intel</IOSTitle>
-      <div className="h-[60vh] bg-[#1c1c1e] rounded-[24px] overflow-hidden border border-white/5"><TwitterFeed id="iHighwayKyushu" /></div>
-    </div>
-  );
 
   return (
     <div className="bg-black min-h-screen text-white font-sans selection:bg-blue-500/30">

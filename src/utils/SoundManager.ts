@@ -3,7 +3,8 @@ class SoundEngine {
 
   constructor() {
     if (typeof window !== 'undefined') {
-      this.audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      this.audioCtx = new AudioContextClass();
     }
   }
 

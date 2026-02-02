@@ -31,7 +31,10 @@ export const parseGPX = (xmlText: string): MultiDayTripLog => {
     const timeStr = pt.getElementsByTagName('time')[0]?.textContent || '';
     
     if (lat && lon && timeStr) {
-      allPoints.push({ lat, lon, ele, time: new Date(timeStr) });
+      const date = new Date(timeStr);
+      if (!isNaN(date.getTime())) {
+        allPoints.push({ lat, lon, ele, time: date });
+      }
     }
   }
 

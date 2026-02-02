@@ -5,8 +5,9 @@ import { useNavStore } from '../../store/useNavStore';
 import { calculateDistance } from '../../utils/geo';
 import { MapPin } from 'lucide-react';
 import type { LineLayer } from 'react-map-gl';
+import type { Feature, LineString } from 'geojson';
 
-const MAPBOX_TOKEN = "pk.eyJ1IjoibmFvdG8xNTAzMDQiLCJhIjoiY21qenAzMDQzMm1hOTNkb2pleG9sc21vNCJ9.xxpgNjx3zzr-tubIbpw2-Q"; 
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 // ルート線のスタイル定義 (Navi Blue)
 const routeLayer: LineLayer = {
@@ -25,7 +26,7 @@ const routeLayer: LineLayer = {
 
 export const MapWidget: React.FC = () => {
   const { currentLocation, nextWaypoint } = useNavStore();
-  const [routeGeoJSON, setRouteGeoJSON] = useState<any>(null);
+  const [routeGeoJSON, setRouteGeoJSON] = useState<Feature<LineString> | null>(null);
   const lastFetchLocation = useRef<{ lat: number; lng: number } | null>(null);
   const lastWaypointId = useRef<string | null>(null);
 
@@ -72,7 +73,7 @@ export const MapWidget: React.FC = () => {
           const data = json.routes[0];
           const route = data.geometry;
           
-          const geojson = {
+          const geojson: Feature<LineString> = {
             type: 'Feature',
             properties: {},
             geometry: route
