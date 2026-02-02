@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavStore } from '../../store/useNavStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Navigation, Coffee, ArrowUp } from 'lucide-react';
+import { getStableDistance } from '../../utils/stableRandom';
 
 export const HighwaySignWidget: React.FC = () => {
   const { nextWaypoint, waypoints } = useNavStore();
@@ -74,7 +75,7 @@ export const HighwaySignWidget: React.FC = () => {
                     {/* 右側: 距離 */}
                     <div className="flex items-baseline gap-1">
                       <span className={`font-bold font-display ${isNext ? 'text-2xl text-yellow-300' : 'text-lg'}`}>
-                        {isNext ? (Math.random() * 10 + 2).toFixed(1) : (Math.random() * 30 + 15).toFixed(0)}
+                        {getStableDistance(wp.id, isNext)}
                       </span>
                       <span className="text-xs">km</span>
                     </div>
