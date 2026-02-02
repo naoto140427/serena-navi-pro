@@ -192,7 +192,15 @@ export const PassengerHub: React.FC = () => {
   );
 };
 
-const ActionButton = ({ icon: Icon, label, subLabel, color, onClick }: any) => (
+interface ActionButtonProps {
+  icon: React.ElementType;
+  label: string;
+  subLabel: string;
+  color: string;
+  onClick: () => void;
+}
+
+const ActionButton = ({ icon: Icon, label, subLabel, color, onClick }: ActionButtonProps) => (
   <motion.button
     whileTap={{ scale: 0.95 }}
     onClick={onClick}
@@ -208,7 +216,14 @@ const ActionButton = ({ icon: Icon, label, subLabel, color, onClick }: any) => (
   </motion.button>
 );
 
-const ItemCard = ({ item, icon }: { item: any, icon: string }) => (
+interface HighlightItem {
+  title: string;
+  desc: string;
+  type: string;
+  time: string;
+}
+
+const ItemCard = ({ item, icon }: { item: HighlightItem, icon: string }) => (
   <div className="flex items-center gap-4 bg-zinc-900/40 p-3 rounded-xl border border-zinc-800/50">
     <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center shrink-0 text-lg">
       {icon}

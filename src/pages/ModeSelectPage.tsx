@@ -6,7 +6,16 @@ interface ModeSelectPageProps {
   onSelectMode: (mode: 'navigation' | 'journal') => void;
 }
 
-const ModeCard = ({ title, subtitle, icon: Icon, color, onClick, delay }: any) => (
+interface ModeCardProps {
+  title: string;
+  subtitle: string;
+  icon: React.ElementType;
+  color: string;
+  onClick: () => void;
+  delay: number;
+}
+
+const ModeCard = ({ title, subtitle, icon: Icon, color, onClick, delay }: ModeCardProps) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}

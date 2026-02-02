@@ -40,13 +40,14 @@ const SegmentedControl = ({ options, value, onChange }: { options: string[], val
   </div>
 );
 
+const members = ['Naoto', 'Taira', 'Haga'];
+
 // Edit Modal
 const EditModal = ({ expense, onClose }: { expense: Expense | null, onClose: () => void }) => {
   const { updateExpense, removeExpense } = useNavStore();
   const [title, setTitle] = useState(expense?.title || '');
   const [amount, setAmount] = useState(expense?.amount?.toString() || '');
   const [payer, setPayer] = useState(expense?.payer || 'Naoto');
-  const members = ['Naoto', 'Taira', 'Haga'];
 
   if (!expense) return null;
 
@@ -97,7 +98,6 @@ export const WalletPage: React.FC = () => {
   const [newTitle, setNewTitle] = useState('');
   const [newAmount, setNewAmount] = useState('');
   const [newPayer, setNewPayer] = useState('Naoto');
-  const members = ['Naoto', 'Taira', 'Haga'];
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleAdd = () => {

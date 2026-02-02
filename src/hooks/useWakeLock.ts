@@ -4,7 +4,7 @@ export const useWakeLock = () => {
   const requestWakeLock = useCallback(async () => {
     try {
       if ('wakeLock' in navigator) {
-        // @ts-ignore
+        // @ts-expect-error Wake Lock API
         await navigator.wakeLock.request('screen');
       }
     } catch (err) {

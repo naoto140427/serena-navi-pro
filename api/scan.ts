@@ -56,8 +56,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     // JSON文字列をパースして返す
     // AIがたまに ```json ... ``` で囲むので除去処理
-    const jsonString = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    const data = JSON.parse(jsonString);
+    let jsonString = text.replace(/```json/g, '').replace(/```/g, '').trim();
+
+    // 念のため、最初に見つかった { から 最後に見つかった } までを抽出する
+    const firstOpen = jsonString.indexOf('{');
+    const lastClose = jsonString.lastIndexOf('}');
+    if (firstOpen !== -1 && lastClose !== -1) {
+      jsonString = jsonString.substring(firstOpen, lastClose + 1);
+    }
+
+    let data;
+    try {
+      data = JSON.parse(jsonString);
+    } catch (parseError) {
+      console.error("JSON Parse Error:", parseError, "Raw AI Text:", text);
+      return res.status(500).json({ error: "Failed to parse AI response" });
+    }
 
     return res.status(200).json(data);
 

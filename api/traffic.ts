@@ -18,7 +18,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 複数のエリアを並列に見に行く
     const results = await Promise.all(
       TARGET_URLS.map(async (url) => {
-        const { data } = await axios.get(url);
+        const { data } = await axios.get(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; SerenaNaviBot/1.0; +https://serena-navi.vercel.app)'
+          },
+          timeout: 5000
+        });
         const $ = cheerio.load(data);
         const urlAlerts: string[] = [];
 

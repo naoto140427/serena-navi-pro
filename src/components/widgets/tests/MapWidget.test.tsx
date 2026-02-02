@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import { MapWidget } from '../MapWidget';
 import { useNavStore } from '../../../store/useNavStore';
 
@@ -41,9 +41,9 @@ describe('MapWidget Performance', () => {
       nextWaypoint: { id: 'wp1', coords: { lat: 36.0, lng: 136.0 }, name: 'WP1' }
     };
 
-    (useNavStore as any).mockReturnValue(initialState);
+    (useNavStore as unknown as Mock).mockReturnValue(initialState);
 
-    let rerender: any;
+    let rerender: (ui: React.ReactNode) => void;
 
     await act(async () => {
       const result = render(<MapWidget />);
@@ -60,7 +60,7 @@ describe('MapWidget Performance', () => {
       ...initialState,
       currentLocation: { lat: 35.0001, lng: 135.0001 }
     };
-    (useNavStore as any).mockReturnValue(state2);
+    (useNavStore as unknown as Mock).mockReturnValue(state2);
 
     await act(async () => {
       rerender(<MapWidget />);
@@ -75,7 +75,7 @@ describe('MapWidget Performance', () => {
       ...state2,
       currentLocation: { lat: 35.0002, lng: 135.0002 }
     };
-    (useNavStore as any).mockReturnValue(state3);
+    (useNavStore as unknown as Mock).mockReturnValue(state3);
 
     await act(async () => {
       rerender(<MapWidget />);
@@ -90,7 +90,7 @@ describe('MapWidget Performance', () => {
       ...state3,
       currentLocation: { lat: 35.001, lng: 135.001 }
     };
-    (useNavStore as any).mockReturnValue(state4);
+    (useNavStore as unknown as Mock).mockReturnValue(state4);
 
     await act(async () => {
       rerender(<MapWidget />);
