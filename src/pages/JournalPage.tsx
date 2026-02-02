@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import Map, { Source, Layer, type MapRef } from 'react-map-gl';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Loader2, Play, Pause, FastForward, RotateCcw, CloudRain, Sun, Moon, MapPin } from 'lucide-react';
+import { ArrowLeft, Loader2, Play, Pause, FastForward, RotateCcw, CloudRain, Sun, Moon, MapPin, Wallet } from 'lucide-react';
 import { parseGPX, type MultiDayTripLog } from '../utils/gpxParser';
 import { useNavStore } from '../store/useNavStore';
+import { WalletWidget } from '../components/widgets/WalletWidget';
 
 // Mapbox Token
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -39,9 +40,11 @@ export const JournalPage: React.FC = () => {
   const [progress, setProgress] = useState(0); // 0.0 ~ 1.0
   const [activeMemory, setActiveMemory] = useState<any>(null); // 現在表示中の思い出
   const [weather, setWeather] = useState<'sunny' | 'rain' | 'sunset' | 'night'>('sunny');
+  const [showWallet, setShowWallet] = useState(false);
 
   const animationRef = useRef<number | null>(null);
   const lastUiUpdateRef = useRef<number>(0);
+  const memoryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load Data
   useEffect(() => {
@@ -104,7 +107,8 @@ export const JournalPage: React.FC = () => {
         setWeather(hitMemory.condition as any);
       } else if (activeMemory !== hitMemory) {
         setActiveMemory(hitMemory);
-        setTimeout(() => setActiveMemory(null), 5000);
+        if (memoryTimeoutRef.current) clearTimeout(memoryTimeoutRef.current);
+        memoryTimeoutRef.current = setTimeout(() => setActiveMemory(null), 5000);
       }
     }
 
@@ -120,7 +124,9 @@ export const JournalPage: React.FC = () => {
 
     // WebGL Marker
     const source = mapRef.current.getSource('cursor-source') as any;
-    if (source) source.setData({ type: 'Feature', geometry: { type: 'Point', coordinates: [currentLon, currentLat] } });
+    if (source && source.setData) {
+      source.setData({ type: 'Feature', geometry: { type: 'Point', coordinates: [currentLon, currentLat] } });
+    }
 
     // Adaptive Camera
     const lookAheadIdx = Math.min(idxFloor + Math.floor(Math.max(20, playbackSpeed * 200)), totalPoints - 1);
@@ -145,7 +151,9 @@ export const JournalPage: React.FC = () => {
 
     // UI Throttling
     if (timestamp - lastUiUpdateRef.current > 100) {
-      setDisplayTime(p1.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      if (p1.time && !isNaN(p1.time.getTime())) {
+        setDisplayTime(p1.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      }
       setProgress(currentProgress);
       lastUiUpdateRef.current = timestamp;
     }
@@ -156,7 +164,10 @@ export const JournalPage: React.FC = () => {
   useEffect(() => {
     if (isPlaying) animationRef.current = requestAnimationFrame(animate);
     else if (animationRef.current) cancelAnimationFrame(animationRef.current);
-    return () => { if (animationRef.current) cancelAnimationFrame(animationRef.current); };
+    return () => {
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+      if (memoryTimeoutRef.current) clearTimeout(memoryTimeoutRef.current);
+    };
   }, [isPlaying, animate]);
 
   // Assets
@@ -216,6 +227,26 @@ export const JournalPage: React.FC = () => {
             <motion.div initial={{ height: 0 }} animate={{ height: '8vh' }} exit={{ height: 0 }} className="absolute top-0 left-0 right-0 bg-black z-20 pointer-events-none" />
             <motion.div initial={{ height: 0 }} animate={{ height: '8vh' }} exit={{ height: 0 }} className="absolute bottom-0 left-0 right-0 bg-black z-20 pointer-events-none" />
           </>
+        )}
+      </AnimatePresence>
+
+      {/* 💰 WALLET MODAL */}
+      <AnimatePresence>
+        {showWallet && (
+          <div className="absolute inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="w-full max-w-2xl h-[80vh] bg-[#1c1c1e] rounded-[32px] border border-white/10 shadow-2xl overflow-hidden relative pointer-events-auto"
+            >
+              <WalletWidget
+                className="h-full w-full p-6"
+                isModal={true}
+                onClose={() => setShowWallet(false)}
+              />
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
@@ -292,6 +323,12 @@ export const JournalPage: React.FC = () => {
               </button>
             ))}
           </div>
+          <button
+            onClick={() => setShowWallet(true)}
+            className="w-12 h-12 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white hover:bg-white/10 transition-colors"
+          >
+            <Wallet size={20} />
+          </button>
         </div>
 
         {/* Footer Player */}

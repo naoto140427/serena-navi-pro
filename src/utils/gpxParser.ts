@@ -31,7 +31,10 @@ export const parseGPX = (xmlText: string): MultiDayTripLog => {
     const timeStr = pt.getElementsByTagName('time')[0]?.textContent || '';
     
     if (lat && lon && timeStr) {
-      allPoints.push({ lat, lon, ele, time: new Date(timeStr) });
+      const time = new Date(timeStr);
+      if (!isNaN(time.getTime())) {
+        allPoints.push({ lat, lon, ele, time });
+      }
     }
   }
 
@@ -39,15 +42,19 @@ export const parseGPX = (xmlText: string): MultiDayTripLog => {
   const daysMap = new Map<string, TrackPoint[]>();
   
   allPoints.forEach(pt => {
-    // 日本時間での日付文字列を生成
-    const dateKey = pt.time.toLocaleDateString('ja-JP', {
-      year: 'numeric', month: '2-digit', day: '2-digit'
-    });
-    
-    if (!daysMap.has(dateKey)) {
-      daysMap.set(dateKey, []);
+    try {
+      // 日本時間での日付文字列を生成
+      const dateKey = pt.time.toLocaleDateString('ja-JP', {
+        year: 'numeric', month: '2-digit', day: '2-digit'
+      });
+
+      if (!daysMap.has(dateKey)) {
+        daysMap.set(dateKey, []);
+      }
+      daysMap.get(dateKey)?.push(pt);
+    } catch (e) {
+      console.warn('Invalid date encountered during grouping:', pt);
     }
-    daysMap.get(dateKey)?.push(pt);
   });
 
   // 3. 配列に変換して整形
@@ -75,6 +82,9 @@ export const parseGPX = (xmlText: string): MultiDayTripLog => {
 };
 
 const calculateDuration = (start: Date, end: Date) => {
+  if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) {
+    return "0h 0m";
+  }
   const diff = end.getTime() - start.getTime();
   const hours = Math.floor(diff / (1000 * 60 * 60));
   const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
