@@ -78,8 +78,8 @@ export interface NotificationPayload {
 
 export interface AppNotification {
   id: string;
-  // Added: rest, music
-  type: 'info' | 'warning' | 'arrival' | 'chat' | 'rest' | 'music';
+  // Added: rest, music, alert
+  type: 'info' | 'warning' | 'arrival' | 'chat' | 'rest' | 'music' | 'alert';
   message: string;
   sender: string;
   timestamp: number;

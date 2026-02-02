@@ -73,7 +73,7 @@ export const MapWidget: React.FC = () => {
           const data = json.routes[0];
           const route = data.geometry;
           
-          const geojson = {
+          const geojson: Feature<LineString> = {
             type: 'Feature',
             properties: {},
             geometry: route
