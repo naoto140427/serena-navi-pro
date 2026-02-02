@@ -1,9 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Map, { Marker, NavigationControl, Source, Layer } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useNavStore } from '../../store/useNavStore';
+import { calculateDistance } from '../../utils/geo';
 import { MapPin } from 'lucide-react';
 import type { LineLayer } from 'react-map-gl';
+
+// Minimal GeoJSON Feature type to avoid 'any'
+interface RouteFeature {
+  type: 'Feature';
+  geometry: Record<string, unknown>;
+  properties: Record<string, unknown>;
+}
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoibmFvdG8xNTAzMDQiLCJhIjoiY21qenAzMDQzMm1hOTNkb2pleG9sc21vNCJ9.xxpgNjx3zzr-tubIbpw2-Q"; 
 
@@ -24,7 +32,9 @@ const routeLayer: LineLayer = {
 
 export const MapWidget: React.FC = () => {
   const { currentLocation, nextWaypoint } = useNavStore();
-  const [routeGeoJSON, setRouteGeoJSON] = useState<any>(null);
+  const [routeGeoJSON, setRouteGeoJSON] = useState<RouteFeature | null>(null);
+  const lastFetchRef = useRef<{ lat: number; lng: number } | null>(null);
+  const lastWaypointIdRef = useRef<string | null>(null);
 
   // デフォルト位置
   const defaultView = {
@@ -40,6 +50,26 @@ export const MapWidget: React.FC = () => {
     const fetchRoute = async () => {
       if (!currentLocation || !nextWaypoint) return;
 
+      // 距離チェックとWaypoint変更チェック
+      const dist = lastFetchRef.current
+        ? calculateDistance(
+            currentLocation.lat,
+            currentLocation.lng,
+            lastFetchRef.current.lat,
+            lastFetchRef.current.lng
+          )
+        : Infinity;
+
+      const waypointChanged = nextWaypoint.id !== lastWaypointIdRef.current;
+
+      // 50m未満の移動かつWaypointが変わっていない場合はAPIを叩かない
+      if (dist < 0.05 && !waypointChanged && lastFetchRef.current) {
+        return;
+      }
+
+      lastFetchRef.current = { lat: currentLocation.lat, lng: currentLocation.lng };
+      lastWaypointIdRef.current = nextWaypoint.id;
+
       const start = [currentLocation.lng, currentLocation.lat];
       const end = [nextWaypoint.coords.lng, nextWaypoint.coords.lat];
 
@@ -53,7 +83,7 @@ export const MapWidget: React.FC = () => {
           const data = json.routes[0];
           const route = data.geometry;
           
-          const geojson = {
+          const geojson: RouteFeature = {
             type: 'Feature',
             properties: {},
             geometry: route
