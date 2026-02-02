@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavStore } from '../../store/useNavStore';
 // ★修正: 使っていない 'Droplets' を削除しました
 import { Cloud, Sun, CloudRain, CloudSnow, CloudLightning, Wind, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { calculateDistance } from '../../utils/geo';
 
 // 天気データの型定義
 interface WeatherData {
@@ -17,6 +18,11 @@ export const WeatherWidget: React.FC = () => {
   const { currentLocation, currentAreaText } = useNavStore();
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Track last fetched location to prevent excessive API calls
+  const lastFetchedLocation = useRef<{ lat: number; lng: number } | null>(null);
+  // Prevent parallel fetches
+  const isFetchingRef = useRef(false);
 
   // WMO Weather Codes をアイコン/色に変換する関数
   const getWeatherConfig = (code: number, isDay: boolean) => {
@@ -71,40 +77,61 @@ export const WeatherWidget: React.FC = () => {
     };
   };
 
-  // Open-Meteo APIからデータ取得
-  useEffect(() => {
-    const fetchWeather = async () => {
-      if (!currentLocation) return;
-      
-      setLoading(true);
-      try {
-        const { lat, lng } = currentLocation;
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true`;
-        
-        const res = await fetch(url);
-        const data = await res.json();
-        
-        if (data.current_weather) {
-          setWeather({
-            temperature: data.current_weather.temperature,
-            weatherCode: data.current_weather.weathercode,
-            windSpeed: data.current_weather.windspeed,
-            isDay: data.current_weather.is_day === 1
-          });
-        }
-      } catch (error) {
-        console.error("Weather fetch failed:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchWeather = useCallback(async (lat: number, lng: number) => {
+    if (isFetchingRef.current) return;
 
-    fetchWeather();
+    isFetchingRef.current = true;
+    setLoading(true);
+    try {
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true`;
+      
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (data.current_weather) {
+        setWeather({
+          temperature: data.current_weather.temperature,
+          weatherCode: data.current_weather.weathercode,
+          windSpeed: data.current_weather.windspeed,
+          isDay: data.current_weather.is_day === 1
+        });
+        lastFetchedLocation.current = { lat, lng };
+      }
+    } catch (error) {
+      console.error("Weather fetch failed:", error);
+    } finally {
+      setLoading(false);
+      isFetchingRef.current = false;
+    }
+  }, []);
+
+  // Location Monitor: Fetch if moved > 5km
+  useEffect(() => {
+    if (!currentLocation) return;
     
-    // 10分ごとに更新
-    const interval = setInterval(fetchWeather, 600000);
+    const last = lastFetchedLocation.current;
+    if (!last) {
+      fetchWeather(currentLocation.lat, currentLocation.lng);
+      return;
+    }
+
+    const dist = calculateDistance(last.lat, last.lng, currentLocation.lat, currentLocation.lng);
+    if (dist > 5) {
+      fetchWeather(currentLocation.lat, currentLocation.lng);
+    }
+  }, [currentLocation, fetchWeather]);
+
+  // Time Monitor: Update every 10 minutes regardless of location change (to catch weather changes)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Access store directly to avoid dependency on currentLocation
+      const loc = useNavStore.getState().currentLocation;
+      if (loc) {
+        fetchWeather(loc.lat, loc.lng);
+      }
+    }, 600000);
     return () => clearInterval(interval);
-  }, [currentLocation]); 
+  }, [fetchWeather]);
 
   // デフォルト設定
   const config = weather 
