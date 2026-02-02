@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { useNavStore } from './useNavStore';
 import * as firebaseDatabase from 'firebase/database';
 
@@ -45,7 +45,7 @@ describe('useNavStore', () => {
   it('sets next waypoint and syncs to firebase', () => {
     const { setNextWaypoint } = useNavStore.getState();
     const mockRef = {};
-    (firebaseDatabase.ref as any).mockReturnValue(mockRef);
+    (firebaseDatabase.ref as unknown as Mock).mockReturnValue(mockRef);
 
     // Assuming 'awaji_sa' exists in the waypoints data imported in useNavStore
     setNextWaypoint('awaji_sa');
