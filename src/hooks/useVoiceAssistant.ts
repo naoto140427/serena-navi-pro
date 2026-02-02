@@ -3,8 +3,18 @@ import { useNavStore } from '../store/useNavStore';
 import { soundManager } from '../utils/SoundManager';
 
 interface IWindow extends Window {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   webkitSpeechRecognition: any;
 }
+
+// システム音声 (Move outside as it is stateless regarding component)
+const speak = (text: string) => {
+  window.speechSynthesis.cancel(); // 前の音声をキャンセル
+  const uttr = new SpeechSynthesisUtterance(text);
+  uttr.lang = "ja-JP";
+  uttr.rate = 1.2;
+  window.speechSynthesis.speak(uttr);
+};
 
 export const useVoiceAssistant = () => {
   const [isListening, setIsListening] = useState(false);
@@ -14,22 +24,17 @@ export const useVoiceAssistant = () => {
   // 連打防止用のフラグ
   const isCommandExecuted = useRef(false);
 
-  const { addExpense, waypoints, setNextWaypoint, currentUser, currentLocation, nextWaypoint, currentSpeed } = useNavStore();
-
-  // システム音声
-  const speak = (text: string) => {
-    window.speechSynthesis.cancel(); // 前の音声をキャンセル
-    const uttr = new SpeechSynthesisUtterance(text);
-    uttr.lang = "ja-JP";
-    uttr.rate = 1.2;
-    window.speechSynthesis.speak(uttr);
-  };
+  // Note: Removed useNavStore subscription here to avoid re-renders on state changes.
+  // Access state directly via useNavStore.getState() in callbacks.
 
   // Gemini API呼び出し
-  const askGemini = async (text: string) => {
+  const askGemini = useCallback(async (text: string) => {
     setIsProcessing(true);
     // 考えていることを伝える
     speak("確認します、少々お待ちください。");
+
+    // Get latest state
+    const { currentLocation, nextWaypoint, currentSpeed } = useNavStore.getState();
 
     try {
       const res = await fetch('/api/chat', {
@@ -57,7 +62,7 @@ export const useVoiceAssistant = () => {
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, []);
 
   const processCommand = useCallback((text: string) => {
     // すでに実行済みなら何もしない（連打防止）
@@ -66,6 +71,9 @@ export const useVoiceAssistant = () => {
 
     console.log("Voice Command Executed:", text);
     const cleanText = text.replace(/\s+/g, '');
+
+    // Get latest state/actions
+    const { addExpense, waypoints, setNextWaypoint, currentUser } = useNavStore.getState();
 
     // --- 1. 定型コマンド (割り勘) ---
     if (cleanText.includes('割り勘') || (cleanText.includes('円') && cleanText.match(/\d/))) {
@@ -99,7 +107,7 @@ export const useVoiceAssistant = () => {
     // 「お腹すいた」「疲れた」などはここに来ます
     askGemini(text);
 
-  }, [addExpense, waypoints, setNextWaypoint, currentUser, currentLocation, nextWaypoint, currentSpeed]);
+  }, [askGemini]);
 
   const startListening = useCallback(() => {
     const { webkitSpeechRecognition } = window as unknown as IWindow;
@@ -121,6 +129,7 @@ export const useVoiceAssistant = () => {
       soundManager.playClick();
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     recognition.onresult = (event: any) => {
       // 確度が高い結果だけを処理
       const results = event.results;
