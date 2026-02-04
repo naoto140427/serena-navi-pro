@@ -9,6 +9,7 @@ import { Layout } from './components/layout/Layout';
 import { BootSequence } from './components/layout/BootSequence';
 import { useWakeLock } from './hooks/useWakeLock';
 import { GPSWatcher } from './components/widgets/GPSWatcher';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 function App() {
   useWakeLock();
@@ -24,29 +25,47 @@ function App() {
   }, [initializeSync]);
 
   if (!booted) {
-    return <BootSequence onComplete={() => setBooted(true)} />;
+    return (
+      <>
+        <BootSequence onComplete={() => setBooted(true)} />
+        <SpeedInsights />
+      </>
+    );
   }
 
   // ランチャー画面
   if (appMode === 'launcher') {
-    return <ModeSelectPage onSelectMode={(m) => setAppMode(m)} />;
+    return (
+      <>
+        <ModeSelectPage onSelectMode={(m) => setAppMode(m)} />
+        <SpeedInsights />
+      </>
+    );
   }
 
   // ジャーナルモード
   if (appMode === 'journal') {
-    return <JournalPage />;
+    return (
+      <>
+        <JournalPage />
+        <SpeedInsights />
+      </>
+    );
   }
 
   // ナビゲーションモード (Cockpit / CoPilot / Passenger)
   return (
-    <Layout>
-      {/* 位置情報監視はNavigationモードでのみ有効にする */}
-      <GPSWatcher />
-      
-      {mode === 'driver' ? <CockpitPage /> : 
-       mode === 'passenger' ? <PassengerHub /> : 
-       <CoPilotPage />}
-    </Layout>
+    <>
+      <Layout>
+        {/* 位置情報監視はNavigationモードでのみ有効にする */}
+        <GPSWatcher />
+        
+        {mode === 'driver' ? <CockpitPage /> : 
+         mode === 'passenger' ? <PassengerHub /> : 
+         <CoPilotPage />}
+      </Layout>
+      <SpeedInsights />
+    </>
   );
 }
 
